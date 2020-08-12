@@ -1,0 +1,65 @@
+/*
+chebyshevform(fun::function_to_approximate, 
+              deg::degree_of_poly_approximating_fn
+              ivl::interval_overwhich_fn_is_approximated)
+
+chebyshevform: fun,deg,ivl --> an approximation polynomial and an interval error bound
+chebyshevform(fun,deg,ivl)::list(degree_deg_poly_approximating_fun,
+                                 coeffsErrors::list[n+1 intervals](),
+                                   the ith interval encloses all errors computing
+                                   the ith coefficient of poly_approximating_fun
+                                 delta::Interval bounding approximation error,
+                                 chebCoeffs::list[n+1 intervals](),
+                                   the interval coeffs of poly_approximating_fun
+                                   considered in the Chebyshev basis
+                                )
+                                      
+coeff(fun_as_poly, deg) --> coefficient of degree deg in fun_as_poly
+
+roundcoefficients(fun_as_poly, formats::list)
+  format[s]: halfprecision (HP), single (SG), double (D), 
+             doubledouble (DD), tripledouble (TD), quad (Q)
+
+roundcorrectly(range) --> precision 
+  at this (the smallest admissible) precision
+     roundnearest(range.lo) == roundnearest(range.hi)
+  if no such precision exists, returns NaN
+
+round(x, precision_in_bits, direction)
+  direction: RN, RD, RU, RZ (round nearest, down, up, tozero)
+round(x, format, direction)
+  format: halfprecision, single, double, doubledouble, tripledouble, quad
+
+implementpoly(polynomial, range, error bound, format, functionname, filename)
+  implements the polynomial polynomial in range range as a function
+  called functionname in C code using double, double-double and triple-double
+  arithmetic in a way that the rounding error (estimated at its first order)
+  is bounded by error bound. The produced code is output in a file named filename.
+  The argument format indicates the double, double-double or triple-double format
+  of the variable in which the polynomial varies, influencing also in the signature
+  of the C function.
+
+  If a seventh argument honor coefficient precisions is given and evaluates
+  to a variable honorcoeffprec of type honorcoeffprec, implementpoly will honor the
+  precision of the given polynomial `polynomials`. This means if a coefficient needs
+  a double-double or a triple-double to be exactly stored, implementpoly will allocate
+  appropriate space and use a double-double or triple-double operation even if the
+  automatic (heuristic) determination implemented in command implementpoly
+  indicates that the coefficient could be stored on less precision or, respectively,
+  the operation could be performed with less precision.
+   If the polynomial polynomial given has not been determined by a process considering
+   directly polynomials with floating-point coefficients, honorcoeffprec should not be indicated.
+*/
+
+deg=6;
+ivl=[0.0,pi/4];
+chebform=chebyshevform(cos(x),deg,ivl);
+chebpoly=chebform[0]; errbounds=chebform[2]; cofs=chebform[3];
+errlo = inf(errbounds); errhi = sup(errbounds);
+prec=64; 
+errboundlo = round(errlo,53,RD);
+errboundhi = round(errhi,53,RU);
+errboundlo;
+errboundhi;
+prec=200;
+dchebpoly=roundcoefficients(chebpoly,[|D,D...|]);
