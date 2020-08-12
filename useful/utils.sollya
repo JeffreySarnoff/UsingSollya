@@ -14,7 +14,7 @@
    dropith(list1, ith) -> list1 without ith element
    dropiths(list1, indiceslist) -> list1 with ith elements
    
-   sublist(list1, indiceslist) -> list1[ indicieslist ]
+   keepiths(list1, indiceslist) -> list1[ indicieslist ]
    
    contains_zero(I)
 
@@ -112,7 +112,7 @@ procedure droptiths(list1, indiceslist) {
   return res;
 };
 
-procedure sublist(list1, indices) {
+procedure keepiths(list1, indices) {
   var res;
   if (max(indices) >= length(list1)) then res=error else res=get_sublist(list1, indices); 
   return res;
