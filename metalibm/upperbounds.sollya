@@ -1,0 +1,80 @@
+/*
+ * Copyright 2008 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * Sollya wrapper scripts for determining upper bounds for the precisions
+ * of floating-point coefficients in approximation polynomials.
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+
+/* determineupperbounds
+
+   Returns a list of symbols D, DD, TD indicating for each coefficient
+   that is not zero a precision that is sufficient for implementing
+   the polynomial with error targetErr with regard to func.
+
+*/
+procedure determineupperbounds(poly, func, dom, targetErr, variableFormat, implementationFile) {
+      var testpoly, err, i;
+      var res, coeffi, format;
+
+      testpoly = myimplementpoly(poly,dom,targetErr/8,variableFormat,"p",implementationFile);
+      if (!(testpoly == testpoly)) then {
+         testpoly = poly;
+         err = error;
+      } else {
+          err = mydirtyinfnorm(testpoly/func-1, dom);
+      };    
+
+      if (err == err) then {          
+      if (abs(err) <= abs(targetErr)) then {
+         res = [||];         
+         for i from 0 to degree(testpoly) do {
+             coeffi = coeff(testpoly, i);
+         if (coeffi != 0) then {
+            if (D(coeffi) == coeffi) then 
+               format = D
+            else 
+               if (DD(coeffi) == coeffi) then 
+                  format = DD
+               else 
+              format = TD;          
+            res = res:.format;
+         };
+         };
+      } else {
+        res = [||];
+        for i from 0 to degree(testpoly) do {
+            if (coeff(testpoly,i) != 0) then res = res:.TD;
+        };
+      };
+      } else {
+        res = [||];
+        for i from 0 to degree(testpoly) do {
+            if (coeff(testpoly,i) != 0) then res = res:.TD;
+        };
+      };
+
+      return res;
+};

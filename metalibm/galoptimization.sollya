@@ -1,0 +1,175 @@
+/*
+ * Copyright 2008 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * Sollya scripts for finding floating-point optimized translations
+ * in simple range reductions
+ *
+ * The algorithms implemented here are based on scientific research
+ * jointly made by Christoph Lauter and Sylvain Chevillard.
+ * 
+ * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+procedure optimisewithgal(Pstar,monomialsToOptimize,accuraciesToAcheive,precisionsToUse,startmidpoint,steps) {
+      var res;
+      var optimFunc, optimFormat, optimBits, k, galalpha, galformat, galbits, galfunc, s, n, r, numera, denomina;
+      var foundgalvalues, foundgalvalue, found, res;
+
+      res = false;
+      optimFunc = [||];
+      optimFormat = [||];
+      optimBits = [||];
+      n = degree(Pstar);
+      for k from 0 to length(monomialsToOptimize) - 1 do {
+        galalpha = monomialsToOptimize[k];
+        galformat = precisionsToUse[k];
+        galbits = accuraciesToAcheive[k];
+        galfunc = 0;
+        for s from 0 to (n - galalpha) do {
+            if (s == 0) then {
+                bincoeff = coeff(Pstar,galalpha + s);
+            } else {
+                numera = galalpha + s;
+                denomina = s;
+                for r from 1 to s-1 do {
+                    numera = numera * (galalpha + s - r);
+                    denomina = denomina * r;
+                };
+                bincoeff = simplifysafe(coeff(Pstar,galalpha + s) * (numera/denomina));
+            };
+            galfunc = galfunc + bincoeff * x^s;
+        };
+        galfunc = simplifysafe(galfunc);
+        optimFunc = optimFunc:.galfunc;
+        optimFormat = optimFormat:.galformat;
+        optimBits = optimBits:.(simplifysafe(2^(-galbits)));
+      };
+
+      foundgalvalues = searchgal(optimFunc,startmidpoint,53,steps,optimFormat,optimBits);
+
+      if (foundgalvalues != [||]) then {
+        foundgalvalue = head(foundgalvalues);
+        if (D(foundgalvalue) == foundgalvalue) then {
+                  found = true;
+                };
+          };
+
+      if (found) then res = foundgalvalue else res = false;
+      return res;
+};
+
+
+procedure findMonomialsToOptimize(Pstar,func,dom,target,steps,startmidpoint) {
+      var res;
+      var bounds;
+      var overestimates;
+      var doubleprecs;
+      var poly, f, d;
+      var t;
+      var i, candidates;
+      var monomials;
+      var s;
+      var precs;
+      var dp;
+      var precisions, formats;
+
+      s = steps;
+
+      t := startmidpoint;
+      d = [inf(dom) - t; sup(dom) - t];
+      poly = simplifysafe(horner(simplifysafe(Pstar(x + t))));
+      f = func(x + t);
+      monomials = [||];
+      for i from 0 to degree(poly) do {
+          if (abs(coeff(poly, i)) >= 1b-3000) then monomials = monomials:.i;
+      };
+
+
+      bounds = determinelowerbounds(poly, f, d, target);
+
+      if (bounds != false) then {
+         doubleprecs = bounds[0];
+         overestimates = bounds[2];
+         precs = bounds[3];
+
+         candidates = [||]; formats = [||]; precisions = [||];
+         for i from 0 to length(doubleprecs)-1 do {
+             if (doubleprecs[i] != D) then {
+            if (doubleprecs[i] == DD) then dp = D else dp = DD;
+            overest = 53 - overestimates[i];
+            if (overest + 4 <= s) then {
+               s := s - overest - 4;
+               candidates = candidates:.(monomials[i]);
+               precisions = precisions:.(precs[i] + 2);
+               formats = formats:.(dp);    
+            };
+         };
+         };      
+         
+         if (candidates != [||]) then {
+           res = [|candidates,precisions,formats|];
+         } else {
+           res = false;
+         };
+
+      } else {
+        res = false;
+      };
+      return res;
+};
+
+
+
+procedure galoptimisation(Pstar,func,dom,target,startmidpoint) {
+      var res;
+      var steps;
+      var combinedMonomialsToOptimize;
+      var resOptim;
+      var monomialsToOptimize, accuraciesToAcheive, precisionsToUse;
+
+      steps = 12;
+
+      if (degree(Pstar) > 12) then {
+          res := [|D(startmidpoint),[||]|];
+          } else {
+              combinedMonomialsToOptimize = findMonomialsToOptimize(Pstar,func,dom,target,steps,startmidpoint);
+              if (combinedMonomialsToOptimize != false) then {
+
+                  monomialsToOptimize = combinedMonomialsToOptimize[0];
+                  accuraciesToAcheive = combinedMonomialsToOptimize[1];
+                  precisionsToUse = combinedMonomialsToOptimize[2];
+
+                          resOptim = optimisewithgal(Pstar,monomialsToOptimize,accuraciesToAcheive,precisionsToUse,startmidpoint,steps);
+
+                  if (resOptim != false) then {
+                     res = [|resOptim,monomialsToOptimize|];
+                  } else {
+                     res := [|D(startmidpoint),[||]|];
+                  };
+          } else {
+                  res := [|D(startmidpoint),[||]|];
+                  };
+      };
+      
+      return res;    
+};

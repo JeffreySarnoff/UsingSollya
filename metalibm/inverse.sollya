@@ -1,0 +1,508 @@
+/*
+ * Copyright 2011 by
+ *
+ * Laboratoire d'Informatique de Paris 6, equipe PEQUAN,
+ * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
+ *
+ * Sollya metalibm procedures for constructing the inverse of
+ * a given function.
+ *
+ * Contributor: Christoph Quirin Lauter (UPMC LIP6 PEQUAN)
+ *              christoph.lauter@lip6.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon and by the equipe PEQUAN
+ * at Universite Pierre et Marie Curie Paris 6.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+procedure invertFunctionInner(func, dom) {
+      var funcPrime, funcSecond;
+      var imageFuncPrime;
+      var inverseFunc;
+      var inverterProc;
+      var dirtyEvaluateImage;
+      var op, XX, YY, myy;
+      var sdom, TF, p, LDelta, Delta, DDelta, i, inverseFuncPrime, opp;
+      var mytaylorform;
+
+      procedure mytaylorform(f, n, x0, I) {
+            var t, p, i, ll, c, d, ff, Delta, npOnefac;
+            var TF;
+            var ot;
+
+            ot = taylorrecursions;
+            taylorrecursions = 0!;
+            
+            t = taylor(f, n, x0);
+            p = 0;
+            ll = [||];
+            for i from degree(t) to 0 by -1 do {
+                c = round(coeff(t, i), prec, RN);
+            d = evaluate(coeff(t, i) - c,[0]);
+            d = [inf(d);sup(d)];
+            ll = d .: ll;
+            p = p + c * _x_^i;
+            };
+            p = horner(p);
+
+            ff = f;
+            for i from 1 to n + 1 do {
+                ff = diff(ff);
+            };
+            npOnefac = 1;
+            for i from 1 to n + 1 do {
+                npOnefac = npOnefac * i;
+            };
+            Delta = evaluate(ff, I) * (I - x0)^(n+1) / npOnefac;
+
+            TF = [| p, ll, Delta |];
+
+            taylorrecursions = ot!;
+
+            return TF;
+      };
+
+      procedure dirtyEvaluateImage(f,dom) {
+          var fDiff, zeros, z, fmin, fmax, y;
+          var yInt, res;
+          var da, db, yia, yib, yy;
+
+          if (sup(dom) - inf(dom) <= 1) then {
+             yInt = evaluate(f,dom);
+          } else {
+             da = inf(dom);
+             yy = evaluate(f, [da]);
+             yia = inf(yy);
+             yib = sup(yy);
+             while (da <= sup(dom)) do {
+                   db = min(sup(dom), da + 0.5);
+               yy = evaluate(f, [da, db]);
+               yia = min(yia, inf(yy));
+               yib = max(yib, sup(yy));
+                   da = da + 0.5;
+             };
+             yInt = [yia, yib];
+          };
+
+          if ((inf(yInt) == inf(yInt)) &&
+              (sup(yInt) == sup(yInt)) &&
+              (sup(abs(yInt)) != infty)) then {
+              fDiff = diff(f);
+              zeros = (dirtyfindzeros(fDiff,dom)) :. (sup(dom));
+              fmin = inf(evaluate(f,inf(dom)));
+              fmax = sup(evaluate(f,inf(dom)));
+              for z in zeros do {
+                  y = evaluate(f,z);
+                  if (inf(y) < fmin) then fmin = inf(y);
+                  if (sup(y) > fmax) then fmax = sup(y);
+              };
+              res = [ fmin; fmax ];
+                } else {
+              res = yInt;
+          };
+
+          return res;
+      };
+
+      /* Start by checking if func is monotone
+         on the given domain 
+      */
+      funcPrime = diff(func);
+      
+      imageFuncPrime = dirtyEvaluateImage(funcPrime, dom);
+      
+      if (inf(imageFuncPrime) * sup(imageFuncPrime) > 0) then {
+        /* The function seems to be inversible.
+           We define a procedure that can invert functions 
+           on domains and define a procedure-base function with
+           it after parametrizating it.
+        */
+        op = prec;
+        prec = 32 * prec + 17!;
+        for XX in [| [inf(dom)], [mid(dom)], [sup(dom)] |] do {
+            YY = evaluate(func, XX);
+        myy = round(mid(YY),prec+3,RN);
+        func = annotatefunction(func, myy, XX, YY - myy);
+        YY = evaluate(funcPrime, XX);
+        myy = round(mid(YY),prec+3,RN);
+        funcPrime = annotatefunction(funcPrime, myy, XX, YY - myy);
+        funcSecond = diff(funcPrime);
+        YY = evaluate(funcSecond, XX);
+        myy = round(mid(YY),prec+3,RN);
+        funcSecond = annotatefunction(funcSecond, myy, XX, YY - myy);
+        };
+        prec = op!;
+
+      
+        procedure inverterProc(X, n, p, func, dom) {
+                  var oldPrec, oldPoints, oldVerb, oldAutosimplify;
+              var Y, T;
+              var fPrime, fSecond, fThird, fFourth, fFifth;
+              var fPrT, fSeT, fThT, fFoT, YD, YT;
+              var inverterProcInner;
+              var self, g;
+              var oldTaylorrecursions;
+              var oldMidpointmode;
+              var evaluateTaylor, intersect;
+
+              procedure evaluateTaylor(f, fp, XX) {
+                    var m, Delta, Y;
+                var X;
+
+                X = [ inf(XX); sup(XX) ];
+
+                if (inf(X) == sup(X)) then {
+                  Y = evaluate(f, [inf(X)]);
+                } else {
+                  m = round(mid(X), prec + 5, RN);
+                  Delta = X - m;
+
+                  Y = evaluate(f, [m]) + Delta * evaluate(fp, X);
+                };
+                
+                return Y;
+              };
+
+              procedure intersect(A, B) {
+                    var i, s;
+                var res;
+
+                if (A == [0]) then {
+                   res = A;
+                } else {
+                  if (B == [0]) then {
+                     res = B;
+                  } else {
+                     if ((0 in A) && (0 in B)) then {
+                        res = B;
+                     } else {
+                        i = max(inf(A), inf(B));
+                        s = min(sup(A), sup(B));
+
+                        if ((i > s) || (!(i == i)) || (!(s == s))) then {
+                           i = min(inf(A), inf(B));
+                           s = max(sup(A), sup(B));
+                        };
+                     
+                        res = [i; s];
+                     };
+                  };
+                };
+
+                return res;
+              };
+
+              procedure inverterProcInner(X, func, dom) {
+                    var g, zeros;
+                var y, iX, sX, Y;
+                var oldPrec;
+                var iY, sY;
+                var factor;
+                var yl, yh;
+                var regular;
+                var XI, oppp, bxi, yt;
+                
+                iX = inf(X);
+                sX = sup(X);
+
+                if ((abs(iX) != infty) && (abs(sX) != infty) && (iX == iX) && (sX == sX)) then {
+                    if (iX == sX) then {
+                      regular = true;
+                      bxi = 2^(-8 * prec);
+                      if (abs(iX) < bxi) then {
+                         yt = evaluate(func,0);
+                         if (0 in [inf(yt);sup(yt)]) then {
+                        regular = false;
+                     };
+                      };
+                      if (regular) then {
+                        g = func - iX;
+                        oldPrec = prec;
+                        prec = prec + 15!;
+                        zeros = dirtyfindzeros(g, dom);
+                        if (zeros == [||]) then {
+                           oldPoints = points;
+                           points = max(points, ceil(37 * max(1,sup(dom) - inf(dom))) * 2 + 1)!;
+                           zeros = dirtyfindzeros(g, dom);
+                           points = oldPoints!;
+                        } else {
+                      factor = 2^(-(8 * prec - 5));
+                      if (abs(zeros[0]) <= factor) then {
+                         if ([-factor;factor] in dom) then {
+                           zeros = dirtyfindzeros(g(factor * _x_), [-1;1]);
+                           if (zeros != [||]) then {
+                              zeros[0] = zeros[0] * factor;
+                           };
+                         };
+                      };
+                    };
+                        prec = oldPrec!;
+
+                        if (zeros == [||]) then {
+                           y = NaN;
+                        } else {
+                           y = zeros[0];            
+                        };
+                    yl = round(y - abs(y) * 2^(-prec -8 + 2),prec+4,RD);
+                    yh = round(y + abs(y) * 2^(-prec -8 + 2),prec+4,RU);
+
+                    Y = [yl;yh];
+
+                            if (!(0 in Y)) then {
+                       xl = evaluate(g, [inf(Y)]);
+                       xh = evaluate(g, [sup(Y)]);
+
+                       if (inf(xl) * sup(xh) > 0) then {
+                             "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%";
+                             "Function inversion incorrect at X = ", X, " yielding Y = ", Y, " (X' = ", [inf(xl);sup(xh)], ")";
+                             "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%";
+                       };
+                        };
+                          } else {
+                        /* func(0) = 0: func(y) = func(0) + y * func'(xi) w/ xi between 0 and y
+
+                       Hence func(y) = x means
+
+                       y = x/func'(xi)
+
+                    */
+                    if (iX == 0) then {
+                      Y = [0;0];
+                    } else {
+                      if (iX < 0) then {
+                         XI = [iX;0];
+                      } else {
+                         XI = [0;iX];
+                      };
+                      oppp = prec;
+                      prec = prec + 15!;
+                      Y = [iX] / evaluate(diff(func), XI);
+                      prec = oppp!;
+                    };
+                      };
+                    } else {
+                        iY = inverterProcInner([iX], func, dom);
+                        sY = inverterProcInner([sX], func, dom);
+                        Y = [ min(inf(iY),inf(sY)); max(sup(iY),sup(sY)) ];
+                    };
+                } else {
+                    Y = [-infty;infty];
+                };
+
+                return Y;
+              };
+
+              oldVerb = verbosity;
+              verbosity = 1!;
+              oldPrec = prec;
+              prec = min(p + 20, ceil(p * (1 + 10 / 100)))!;
+              oldPoints = points;
+              points = 3!;
+              oldAutosimplify = autosimplify;
+              autosimplify = off!;
+              
+              match n with 
+                    0       : {
+                     Y = inverterProcInner(X, func, dom);
+                          }
+                1       : {
+                             T = inverterProcInner(X, func, dom);
+                             fPrime = diff(func);
+                     fSecond = diff(fPrime);
+                     YD = evaluate((1/(fPrime)),T);
+                     fPrT = evaluateTaylor(fPrime, fSecond, T);
+                     YT = 1/fPrT;
+                     Y = intersect(YD, YT);
+                          }
+                2       : {
+                             T = inverterProcInner(X, func, dom);
+                     fPrime = diff(func);
+                     fSecond = diff(fPrime);
+                     fThird = diff(fSecond);
+                     YD = evaluate((-((fSecond)/((fPrime)^3))),T);
+                     fPrT = evaluateTaylor(fPrime, fSecond, T);
+                     fSeT = evaluateTaylor(fSecond, fThird, T);
+                     YT = -((fSeT)/((fPrT)^3));
+                     Y = intersect(YD, YT);
+                      }
+                3       : {
+                             T = inverterProcInner(X, func, dom);
+                     fPrime = diff(func);
+                     fSecond = diff(fPrime);
+                     fThird = diff(fSecond);
+                     fFourth = diff(fThird);
+                     YD = evaluate(((((3 * ((fSecond)^2)) - ((fPrime) * (fThird)))/((fPrime)^5))),T);
+                     fPrT = evaluateTaylor(fPrime, fSecond, T);
+                     fSeT = evaluateTaylor(fSecond, fThird, T);
+                     fThT = evaluateTaylor(fThird, fFourth, T);
+                     YT = ((((3 * ((fSeT)^2)) - ((fPrT) * (fThT)))/((fPrT)^5)));
+                     Y = intersect(YD, YT);
+                      }
+                4       : {
+                             T = inverterProcInner(X, func, dom);
+                     fPrime = diff(func);
+                     fSecond = diff(fPrime);
+                     fThird = diff(fSecond);
+                     fFourth = diff(fThird);
+                     fFifth = diff(fFourth);
+                     YD = evaluate((-(((fFourth)*((fPrime)^2)-10*(fPrime)*(fSecond)*(fThird)+15*((fSecond)^3))/((fPrime)^7))),T);
+                     fPrT = evaluateTaylor(fPrime, fSecond, T);
+                     fSeT = evaluateTaylor(fSecond, fThird, T);
+                     fThT = evaluateTaylor(fThird, fFourth, T);
+                     fFoT = evaluateTaylor(fFourth, fFifth, T);
+                     YT = (-(((fFoT)*((fPrT)^2)-10*(fPrT)*(fSeT)*(fThT)+15*((fSeT)^3))/((fPrT)^7)));
+                     Y = intersect(YD, YT);
+                      }                   
+                default : {
+                             /* We solve this case by calling ourselves...
+
+                                            (f^-1)^(n)(x) = (x -> 1/f'(f^-1(x)))^(n-1)(x)
+
+                        This is of course painfully slow.
+
+                                         */
+                             write("Help: need to compute a ",n,"th derivative of the inverse function of the function ", func, " for evaluation over ", X, "...");
+                     self = invertFunction(func, dom);
+                     fPrime = diff(func);
+                     g = 1/(fPrime(self));
+                     gn = diff(g);
+                     for i from 2 to n-1 do {
+                         gn = diff(gn);
+                     };
+                     oldTaylorrecursions = taylorrecursions;
+                     taylorrecursions = 0!;
+                     Y = evaluate(gn, X);
+                     taylorrecursions = oldTaylorrecursions!;
+                     write("... yielding ", Y, "\n");
+                          };
+
+              prec = oldPrec!;
+              points = oldPoints!;
+              verbosity = oldVerb!;
+              autosimplify = oldAutosimplify!;
+
+              /*
+              oldMidpointmode = midpointmode;
+              midpointmode = on!;
+              "p = ", p, ", n = ", n, ": X = ", X, " -> Y = ", Y;
+              midpointmode = oldMidpointmode!;
+              */
+
+              return Y;
+        };
+
+        inverseFunc = function(bind(bind(inverterProc, dom, dom), func, func));
+
+        if (0 in dom) then {
+           if (evaluate(func, [0]) == [0]) then {
+              inverseFunc = annotatefunction(inverseFunc, 0, [0], [0]);
+           };
+           opp = prec;
+           prec = prec + 50!;
+           for sdom in [| [-1b-200;0], [0;1b-200] |] do {
+               if (evaluate(inverseFunc,sdom) in dom) then {
+                  TF = mytaylorform(inverseFunc, 2, 0, sdom);
+                  p = TF[0];
+                  LDelta = TF[1];
+                  Delta = TF[2];
+                  DDelta = [0];
+                  for i from length(LDelta) - 1 to 0 do {
+                      DDelta = LDelta[i] + DDelta * sdom;
+                  };
+                  DDelta = DDelta + Delta;
+
+                  "annotating inverse function with p = ", p, " and Delta = ", Delta;
+                  inverseFunc = annotatefunction(inverseFunc, p, sdom, DDelta);
+
+                  inverseFuncPrime = diff(inverseFunc);
+                      TF = mytaylorform(inverseFuncPrime, 1, 0, sdom);
+                  p = TF[0];
+                  LDelta = TF[1];
+                  Delta = TF[2];
+                  DDelta = [0];
+                  for i from length(LDelta) - 1 to 0 do {
+                      DDelta = LDelta[i] + DDelta * sdom;
+                  };
+                  DDelta = DDelta + Delta;
+
+                  "annotating derivative of inverse function with p = ", p, " and Delta = ", Delta;
+                  inverseFuncPrime = annotatefunction(inverseFuncPrime, p, sdom, DDelta);
+               };
+           };
+           prec = opp!;
+        };
+      } else {
+        write("Function ", func, " does not seem to be inversible on domain ", dom, ", as the computed image of the derivative is ", imageFuncPrime, "\n");
+        inverseFunc = error;
+      };
+
+      return inverseFunc;
+};
+
+invertFunctionCache = [||];
+
+procedure getInvertFunctionCache(func,dom) {
+      var key;
+      var res;
+      var cacheList, hd;
+      var found;
+
+      res = { .okay = false };
+
+      key = { .f = func, .dom = dom };
+
+      cacheList = invertFunctionCache;
+      found = false;
+      while ((cacheList != [||]) && (!found)) do {
+        hd = head(cacheList);
+        cacheList = tail(cacheList);
+        
+        if (hd.key == key) then {
+           res.okay = true;
+           res.res = hd.res;
+           found = true;
+        };
+      };
+
+      return res;
+};
+
+procedure insertInvertFunctionCache(res,func,dom) {
+      var key;
+      var entry;
+
+      key = { .f = func, .dom = dom };
+      entry = { .res = res, .key = key };
+
+      invertFunctionCache = entry .: invertFunctionCache;
+};
+
+
+procedure invertFunction(func, dom) {
+      var cacheRes;
+      var res;
+
+      cacheRes = getInvertFunctionCache(func,dom);
+      if (cacheRes.okay) then {
+         res = cacheRes.res;
+      } else {
+         res = invertFunctionInner(func,dom);
+         insertInvertFunctionCache(res,func,dom);
+      };
+      return res;
+};
+

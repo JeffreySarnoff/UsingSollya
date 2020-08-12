@@ -1,0 +1,1257 @@
+/*
+ * Copyright 2008-2013 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * and by
+ *
+ * Laboratoire d'Informatique de Paris 6, equipe PEQUAN,
+ * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
+ *
+ * Sollya wrapper scripts for the Remez algorithm in Sollya
+ * Implements an algorithm published in the proceedings of the RNC'8 conference
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon/ UPMC LIP6 PEQUAN) 
+ *              christoph.lauter@ens-lyon.org
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon and by the equipe PEQUAN
+ * at Universite Pierre et Marie Curie Paris 6.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+/* Debug mode */
+
+remezprintdebug = false;
+
+/* Global variables for the remez and guessdegree caches */
+
+remezCache = [||];
+guessdegreeCache = [||];
+
+/* A timing wrapper around dirtyinfnorm */
+procedure mydirtyinfnorm(funktion, dom) {
+      var res, dirtyinfnormtime;
+      var oldpoints;
+
+      dirtyinfnormtime = 0;
+      
+      oldpoints = points;
+      points = 75!;
+      dirtyinfnormtime = dirtyinfnormtime +
+                             time({ 
+                                 res = dirtyinfnorm(funktion, dom);
+                  });
+      points = oldpoints!;    
+
+      if ((!(res == res)) || (res == 0)) then {
+          dirtyinfnormtime = dirtyinfnormtime +
+                                 time({ 
+                                     res = dirtyinfnorm(funktion, dom);
+                      });
+      };
+      wholeDirtyinfnormTime := wholeDirtyinfnormTime + dirtyinfnormtime;
+      
+      return res;
+};
+
+/* A timing wrapper around dirtyfindzeros */
+procedure mydirtyfindzeros(funktion, dom) {
+      var res, dirtyfindzerostime;
+
+      dirtyfindzerostime = time({ 
+                                 res = dirtyfindzeros(funktion, dom);
+                  });
+
+      wholeDirtyfindzerosTime := wholeDirtyfindzerosTime + dirtyfindzerostime;
+
+      return res;
+};
+
+/* Quickly checks if the infinite norm of funktion 
+   in dom is less than target 
+
+   Returns true or false
+
+*/
+procedure quickcheckinfnorm(funktion,dom,target) {
+      var t, b, h, y, maxy;
+      var oldprec;
+      var res;
+      var infn;
+
+      oldprec = prec = ?;
+      prec = 20!;
+      t = inf(dom);
+      b = sup(dom);
+      h = round((b - t) / 64,12,RU);
+      maxy = 0; 
+      while ((t <= b) && (maxy <= target)) do {
+        maxy := abs(funktion(t));
+        t = round(t + h,12,RU);
+      };
+      prec = oldprec!;
+      
+      if (maxy > target) then 
+          res = false 
+      else {
+           infn = mydirtyinfnorm(funktion,dom);
+           if (infn > target) then {
+              write("Warning: quickcheckinfnorm decides false case by dirtyinfnorm\n");
+              res = false; 
+           } else res = true;
+      };
+
+      return res;
+};
+
+
+procedure minimaMaxima(funktion,dom) {
+    var zerosIntRaw, zerosInt, zeros;
+    var deriv;  
+    var z;
+    var minimum, maximum, t;
+
+    deriv = diff(funktion);
+    zerosIntRaw = myfindzeros(deriv,dom);
+    zerosInt = [||];
+    for z in zerosIntRaw do zerosInt = zerosInt @ (myfindzeros(deriv,z));
+    zeros = [||];
+    for z in zerosInt do zeros = zeros @ (mydirtyfindzeros(deriv,z));
+    zeros = sort(zeros);
+
+    t := funktion(inf(dom));
+    minimum = t;
+    maximum = t;
+    t := funktion(sup(dom));
+    if (t > maximum) then maximum = t;
+    if (t < minimum) then minimum = t;
+    
+    for z in zeros do {
+        t := funktion(z);
+        if (t > maximum) then maximum = t;
+        if (t < minimum) then minimum = t;
+    };
+
+    return [ minimum; maximum ];
+};
+
+procedure guessdegreeModifyDomain(d) {
+      var res;
+
+      if (inf(d) == 0) then {
+         if (sup(d) == 0) then {
+            res = [-1b-200;1b-200];
+         } else {
+                res = [1b-200;sup(d)];
+         };
+      } else {
+         if (sup(d) == 0) then {
+            res = [inf(d);-1b-200];
+         } else {
+            res = d;
+         };
+      };
+      
+      return res;
+};
+
+procedure recoverGuessdegreeFirstTry(funktion, degMin, degMax, dom, w, eps) {
+      var res;
+      var p;
+      var okay, found, dFound, d;
+
+      res = { .okay = false };
+
+      okay = true;
+      found = false;
+      d = degMin;
+      while (okay && (!found) && (d >= degMin) && (d <= degMax)) do {
+
+        "Trying to recover a failed guessdegree with remez & check: current degree = ", d;
+        p = false;
+        p = remezbugreport(funktion,d,dom,w,eps,0.1);
+
+        if (p == p) then {
+               if (p != false) then {
+                  if (quickcheckinfnorm(p * w - funktion,dom,eps)) then {
+                dFound = d;
+            found = true;
+              } else {
+                d = d + 1;
+              };
+               } else {
+              okay = false;
+           };
+            } else {
+          okay = false;
+        };
+      };
+
+      if (okay && found) then {
+         res.okay = true;
+         res.res = dFound;
+      };
+
+      return res;
+};
+
+/* guessdegreewrapper */
+procedure guessdegreewrapper(funktion,dd,eps,w) {
+      var res, guess;
+      var poly;
+      var guessdegreeTime;
+      var oldPoints;
+      var d;
+      var oldVerbGuessdegree;
+      var rr;
+
+      d = guessdegreeModifyDomain(dd);
+
+      oldPoints = points;
+      points = 65!;
+      oldVerbGuessdegree = verbosity;
+      if (remezprintdebug) then verbosity = 4!;
+      guessdegreeTime = time({
+                                 guess = guessdegree(funktion,d,eps,w);
+                                 });
+      points = oldPoints!;
+      verbosity = oldVerbGuessdegree!;
+      wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
+      if (!(guess == guess)) then {
+         guess = [1,1];
+      };
+
+      if ((sup(guess) - inf(guess) <= 8) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(funktion/w)) < 0) && (!(0 in evaluate(simplifysafe(funktion/w), dom)))) then {
+         write("guessdegree has failed on ", funktion, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
+         rr = recoverGuessdegreeFirstTry(funktion, inf(guess), inf(guess) * 4, d, w, eps);
+         if (rr.okay) then {
+            res = rr.res;
+         } else {
+         res = sup(guess);
+         poly = remezbugreport(funktion,res,d,w,eps,0.1);
+         while ((poly != false) && quickcheckinfnorm(poly * w - funktion,d,eps)) do {
+               res := res - 1;
+               poly = remezbugreport(funktion,res,d,w,eps,0.1);        
+         };
+         if (poly == false) then res = inf(guess);
+         };
+      } else
+        res = inf(guess);
+
+      return res;
+};
+
+/* guessdegreewrapperwithboundinner */
+procedure guessdegreewrapperwithboundinner(funktion,dd,eps,w,b) {
+      var res, guess;
+      var poly;
+      var guessdegreeTime;
+      var oldPoints;
+      var d;
+      var oldVerbGuessdegree;
+      var rr;
+
+      d = guessdegreeModifyDomain(dd);
+
+      oldPoints = points;
+      points = 65!;
+      oldVerbGuessdegree = verbosity;
+      if (remezprintdebug) then verbosity = 4!;
+      guessdegreeTime = time({
+                                 guess = guessdegree(funktion,d,eps,w,b);
+                                 });
+                 
+      points = oldPoints!;
+      verbosity = oldVerbGuessdegree!;
+      wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
+
+      if (!(guess == guess)) then {
+         guess = [1,b+1];
+      };
+
+      if ((sup(guess) != infty) && (sup(guess) - inf(guess) <= 8) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(funktion/w)) < 0) && (!(0 in evaluate(simplifysafe(funktion/w), dom)))) then {
+         write("guessdegree has failed on ", funktion, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
+         rr = recoverGuessdegreeFirstTry(funktion, inf(guess), b + 1, d, w, eps);
+         if (rr.okay) then {
+            res = rr.res;
+         } else {
+         res = sup(guess);
+         poly = remezbugreport(funktion,res,d,w,eps,0.1);
+         while ((poly != false) && quickcheckinfnorm(poly * w - funktion,d,eps)) do {
+               res := res - 1;
+               poly = remezbugreport(funktion,res,d,w,eps,0.1);        
+         };
+         if (poly == false) then res = inf(guess);
+         };
+      } else {
+        if (sup(guess) == infty) then {
+                res = b + 1;
+        if (((res - inf(guess) <= 8) && (res - inf(guess) > 4) && (degree(simplifysafe(funktion/w)) < 0) && (!(0 in evaluate(simplifysafe(funktion/w), dom)))) || (inf(guess) * 2 <= b)) then {
+                 write("guessdegree has failed on ", funktion, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
+             rr = recoverGuessdegreeFirstTry(funktion, inf(guess), b + 1, d, w, eps);
+                 if (rr.okay) then {
+                    res = rr.res;
+                 } else {
+                 res = b + 1;
+                 poly = remezbugreport(funktion,res,d,w,eps,0.1);
+                 while ((poly != false) && quickcheckinfnorm(poly * w - funktion,d,eps)) do {
+                    res := res - 1;
+                    poly = remezbugreport(funktion,res,d,w,eps,0.1);           
+                 };
+                 if (poly == false) then res = inf(guess);
+             };
+        };
+            } else {
+                res = ceil(mid(guess));
+            };
+      };
+
+      return res;
+};
+
+/* Get a guessdegree computation out of the guessdegree cache */
+procedure getGuessdegreeCache(funktion,dom,eps,w,bounds) {
+      var key;
+      var res;
+      var cacheList, hd;
+      var found;
+
+      res = { .okay = false };
+
+      key = { .f = funktion, .dom = dom, .eps = eps, .w = w, .bounds = bounds };
+
+      cacheList = guessdegreeCache;
+      found = false;
+      while ((cacheList != [||]) && (!found)) do {
+        hd = head(cacheList);
+        cacheList = tail(cacheList);
+        
+        if (hd.key == key) then {
+           res.okay = true;
+           res.res = hd.res;
+           found = true;
+        };
+      };
+
+      return res;
+};
+
+procedure insertGuessdegreeCache(res,funktion,dom,eps,w,bounds) {
+      var key;
+      var entry;
+
+      key = { .f = funktion, .dom = dom, .eps = eps, .w = w, .bounds = bounds };
+      entry = { .res = res, .key = key };
+
+      guessdegreeCache = entry .: guessdegreeCache;
+};
+
+procedure guessdegreewrapperwithbound(funktion,d,eps,w,b) {
+      var cacheRes, res;
+
+      cacheRes = getGuessdegreeCache(funktion,d,eps,w,b);
+      if (cacheRes.okay) then {
+         "Using a cached guessdegree result for guessdegreewrapperwithbound(",funktion,",", d, ",", eps,",", w, ",", b,")";
+         res = cacheRes.res;
+          } else { 
+         res = guessdegreewrapperwithboundinner(funktion,d,eps,w,b);
+         insertGuessdegreeCache(res,funktion,d,eps,w,b);
+      };
+
+      return res;
+};
+
+/* Get a remez computation out of the remez cache */
+procedure getRemezCache(funktion,m,dom,w,qual,bounds) {
+      var key;
+      var res;
+      var cacheList, hd;
+      var found;
+
+      res = { .okay = false };
+
+      key = { .f = funktion, .m = m, .dom = dom, .w = w, .qual = qual, .bounds = bounds };
+
+      cacheList = remezCache;
+      found = false;
+      while ((cacheList != [||]) && (!found)) do {
+        hd = head(cacheList);
+        cacheList = tail(cacheList);
+        
+        if (hd.key == key) then {
+           res.okay = true;
+           res.res = hd.res;
+           found = true;
+        };
+      };
+
+      return res;
+};
+
+procedure insertRemezCache(res,funktion,m,dom,w,qual,bounds) {
+      var key;
+      var entry;
+
+      key = { .f = funktion, .m = m, .dom = dom, .w = w, .qual = qual, .bounds = bounds };
+      entry = { .res = res, .key = key };
+
+      remezCache = entry .: remezCache;
+};
+
+procedure myremezisfullbase(phis) {
+      var res, i, l, t;
+
+      if (phis == [||]) then {
+         res = false;
+      } else {
+         res = true;
+         i = 0;
+         l = length(phis);
+         while (res && (i < l)) do {
+               t = phis[i];
+           if (i == 0) then {
+              if (t != 1) then {
+                 res = false;
+              };
+           } else {
+              if (t != x^i) then {
+                 res = false;
+              };
+           };
+               i = i + 1;
+         };
+      };
+      return res;
+};
+
+procedure myremezinterpolatefullbase(X, Y, phis) {
+      var res, lx, ly, lp, l, p;
+
+      res = { .okay = false };
+      lx = length(X);
+      ly = length(Y);
+      lp = length(phis);
+      if ((lx == ly) && (ly == lp)) then {
+         l = lx;
+         if (myremezisfullbase(phis)) then {
+            p = interpolate(X, Y, 2b-2000);
+        if (!((!(p == p)) && (!(p != p)))) then {
+           res.okay = true;
+           res.poly = horner(p);
+        };
+         };
+      };
+      return res;
+};
+
+procedure myremezinterpolate(X, Y, phis) {
+      var res, resOpt;
+      
+      res = { .okay = false };
+      resOpt = myremezinterpolatefullbase(X, Y, phis);
+      if (resOpt.okay) then {
+        res = resOpt;
+      } else {
+        res = myremezinterpolateinner(X, Y, phis);
+      };
+      return res;
+};
+
+procedure myremezinterpolateinner(X, Y, phis) {
+      var res, lx, ly, lphis, l, c, recXA, recYA, recXB, recYB, recPhis;
+      var resA, resB, pA, pB, p, xA, xB;
+      
+      res = { .okay = false };
+      lx = length(X);
+      ly = length(Y);
+      lphis = length(phis);
+      if ((lx == ly) && (ly == lphis)) then {
+         l = lx;
+         if (l == 1) then {
+        c = Y[0] / (substitute(phis[0],X[0]));
+        res.okay = true;
+        res.poly = horner(c * (phis[0]));
+         } else {
+            t = simplify(phis[l-1]/phis[l-2]);
+        recXA = tail(X);
+        recYA = tail(Y);
+        recXB = revert(tail(revert(X)));
+        recYB = revert(tail(revert(Y)));
+        recPhis = revert(tail(revert(phis)));
+        xA = X[0];
+        xB = X[l-1];
+        resA = myremezinterpolate(recXA, recYA, recPhis);
+        if (resA.okay) then {
+             resB = myremezinterpolate(recXB, recYB, recPhis);
+             if (resB.okay) then {
+                pA = resA.poly;
+            pB = resB.poly;
+            p = 1/(substitute(t, xA - xB)) * (
+                                                            substitute(t, xA - x) * pA + 
+                                substitute(t, x - xB) * pB
+                                                         );
+                res.okay = true;
+            res.poly = horner(p);
+             };
+        };
+         };
+      };
+
+      return res;
+};
+
+procedure myremezbase(funktion, m, d, eps) {
+      var res;
+      var X, Y;
+      var n;
+      var i;
+      var xi, yi;
+      var a, b;
+      var phis, phi;
+      var oldPrec;
+      var resA;
+      var mnogochlen, rmnogochlen, iii;
+
+      res = { .okay = false };
+      oldPrec = prec;
+      prec = ceil(-log2(eps) + 10)!;
+      n = length(m) - 1;
+      a = inf(d);
+      b = sup(d);
+      X = [||];
+      Y = [||];
+      phis = [||];
+      for i from 0 to n do {
+          xi := 1/2 * (a + b) + 1/2 * (b - a) * cos(pi * ((2 * i + 1)/(2 * (n + 1))));
+          yi := funktion(xi);
+          if (m[i] == 0) then { phi = 1; } else { phi = simplify(x^(m[i])); };
+          X = xi .: X;
+          Y = yi .: Y;
+          phis = phi .: phis;
+      }; 
+      X = revert(X);
+      Y = revert(Y);
+      phis = revert(phis);
+      prec = 2 * prec!;
+      resA = myremezinterpolate(X, Y, phis);
+      if (resA.okay) then {
+         res.okay = true;
+         mnogochlen = subpoly(resA.poly, m);
+         rmnogochlen = 0;
+         for iii from 0 to degree(mnogochlen) do {
+             rmnogochlen = rmnogochlen + round(coeff(mnogochlen,iii), max(2000, prec), RN) * x^iii;
+         };
+         res.poly = horner(rmnogochlen);
+      };
+      prec=oldPrec!;
+      return res;
+};
+
+procedure myremezalternate(funktion, m, d, eps) {
+      var res;
+      var firstMonomial, myM, mon, myFunktion, myRes;
+
+      res = { .okay = false };
+      if (m != [||]) then {
+         firstMonomial = m[0];
+         if (firstMonomial > 0) then {
+            myM = [||];
+        for mon in m do {
+            myM = (simplify(mon - firstMonomial)) .: myM;
+        };
+        myM = revert(myM);
+        myFunktion = simplify(funktion/(x^firstMonomial));
+        myRes = myremezalternate(myFunktion, myM, d, eps);
+        if (myRes.okay) then {
+           res.okay = true;
+           res.poly = simplify((x^firstMonomial) * myRes.poly);
+        };
+         } else {
+            if (inf(evaluate(funktion, inf(d)) * evaluate(funktion, sup(d))) > 0) then {
+               res = myremezbase(funktion, m, d, eps);
+            };
+         };
+      };
+      return res;
+};
+
+// myremez = myremezalternate;
+
+/* remezbugreport */
+procedure remezbugreport(funktion,m,d,w,eps,qual) {
+      var res;
+      var oldpoints;
+      var oldprec;
+      var oldverb;
+      var myDom;
+      var funktion, isAList, y;
+      var oldDisplay;
+      var remezTime;
+      var myM;
+      var cacheRes, bound, targetPrec;
+      var haveAnswer, myremezres;
+      var oldVerbRemez;
+      var myFunktion;
+
+      myDom = d;
+      if ((inf(d) == 0) || (sup(d) == 0)) then {
+         isAList = false;
+         match (m) with a @ [||] : { isAList = true; }
+                            default : { };
+             if (isAList) then {
+            if (m[0] != 0) then {
+           myFunktion = simplifysafe(funktion/w);
+           y = evaluate(myFunktion,[0]);
+           if (0 in y) then {
+              if (inf(myDom) == 0) then {
+                 myDom = [ 1b-1074; sup(myDom) ];
+              };
+              if (sup(myDom) == 0) then {
+                 myDom = [ inf(myDom); -1b-1074 ];
+              };
+           };
+            };
+             };
+      };
+
+      myM = m;
+      match (m) with a @ [||] : { }
+                     default  : { myM = [| 0, ..., m |]; };
+      
+
+      bound = [abs(eps)/4;abs(eps)];
+
+      cacheRes = getRemezCache(funktion,myM,myDom,w,qual,bound);
+      if (cacheRes.okay) then {
+         "Using a cached remez approximation polynomial";
+         res = cacheRes.res;
+          } else { 
+         oldpoints = points = ?;
+         points = max(65, 4 * max(myM))!;
+         oldprec = prec = ?;
+         if (abs(eps) > 0) then {
+            targetPrec = ceil(-log2(abs(eps))) + 10;
+         } else {
+            targetPrec = 12;
+         };      
+         prec = min(300, max(ceil(1.05 * prec), targetPrec))!;
+         oldverb = verbosity = ?;
+         if (remezprintdebug) then verbosity = 1!;
+
+         res = false;
+
+         oldDisplay = display;
+         display = dyadic!;
+         write("Remez debugging: prec = ",prec,"; points = ",points,"; remez(",funktion,",",myM,",",myDom,",",w,",",qual,",",bound,");", " targetErr = ", eps,";\n"); 
+         display = oldDisplay!;
+
+         haveAnswer = false;
+         if (isbound(myremez)) then {
+            myremezres = myremez(simplify(funktion/w), myM, myDom, abs(eps));
+        if (myremezres.okay) then {
+           res = myremezres.poly;
+           haveAnswer = true;
+        };
+         };
+
+         if (!haveAnswer) then {
+             oldVerbRemez = verbosity;
+         if (remezprintdebug) then verbosity = 5!;
+             remezTime = time({
+                              res = remez(funktion,myM,myDom,w,qual,bound);
+                  if (!(res == res)) then res = 1 * x^(myM[0]);
+                          });
+             verbosity = oldVerbRemez!;
+             "Remez performance debugging: remez took ", round(remezTime,12,RN), " sec.";
+             wholeRemezTime := wholeRemezTime + remezTime;
+         };
+
+         verbosity = oldverb!;
+         points = oldpoints!;
+         prec = oldprec!;
+
+         insertRemezCache(res,funktion,myM,myDom,w,qual,bound);
+          };
+
+      return res;
+};
+
+
+/* legacyremezorfail
+
+   Returns an approximation polynomial or false 
+
+   Uses symetries if possible
+
+*/
+procedure legacyremezorfail(funktion,dom,monomials,eps) {
+      var poly, poly2;
+      var d, symetrical, i, firstmonomial;
+      var deg;
+
+      deg = degree(funktion);
+
+      if ((deg > 0) && (deg <= monomials[length(monomials) - 1])) then {
+
+         poly = funktion;
+      
+      } else {    
+
+        symetrical = true;
+        i := length(monomials) - 1;
+        firstmonomial = head(monomials);
+        while ((i >= 0) && symetrical) do {
+        if (floor((monomials[i] + firstmonomial) / 2) * 2 != (monomials[i] + firstmonomial)) then 
+           symetrical = false;
+        i := i - 1;
+        };
+        if (symetrical) then {
+           if (-inf(dom) > sup(dom)) then 
+          d = [1b-1075, -inf(dom)]
+           else 
+          d = [1b-1075, sup(dom)];
+        } else {
+           d = dom;
+        };
+
+        poly = false;
+        poly = remezbugreport(1,monomials,d,1/funktion,eps,2621b-19);
+        if (symetrical) then {
+              poly2 = false;
+              poly2 = remezbugreport(1,monomials,[-sup(d);-inf(d)],1/funktion,eps,2621b-19);
+          if (poly2 != false) then {
+             if (mydirtyinfnorm(poly2/funktion - 1, dom) < mydirtyinfnorm(poly/funktion - 1, dom)) then {
+                poly = poly2;
+             };
+          };
+          if ((poly == false) && (poly2 != false)) then poly = poly2;
+        };
+      };
+
+      return poly;
+};
+
+procedure checkZeroConstantCache(data, X, n, p) {
+      var res;
+
+      res = { .okay = false };
+      if (isbound(zeroConstantCache)) then {
+         if ((zeroConstantCache.data == data) &&
+             (zeroConstantCache.X == X) &&
+         (zeroConstantCache.n == n) &&
+         (zeroConstantCache.p >= p)) then {
+         res = { .okay = true; .res = zeroConstantCache.res };
+             };
+      };
+      
+      return res;
+};
+
+procedure insertZeroConstantCache(data, X, n, p, res) {
+      zeroConstantCache = { .data = data, .X = X, .n = n, .p = p, .res = res };
+};
+
+maxZeroPrec = 2000;
+
+procedure makeZeroConstant(funktion, dom) {
+      var res, oldPrec, oldPoints, oldVerb;
+      var zeros, z, myDom, zd, zu;
+      var constantevaluateprocedure;
+      var ff, c, delta, y;
+      var oP;
+
+      oldPrec = prec;
+      oldPoints = points;
+      prec = max(300, prec)!;
+      points = default!;
+      zeros = dirtyfindzeros(funktion, dom);
+      if (zeros == [||]) then {
+         res = NaN;
+      } else {
+         z = zeros[0];
+         y = simplify(funktion(z));
+         if (y == 0) then {
+             res = z;
+         } else {
+             zd = min(z * (1 - 2^(-prec+4)), z * (1 + 2^(-prec+4)));
+             zu = max(z * (1 - 2^(-prec+4)), z * (1 + 2^(-prec+4)));
+         oP = prec;
+         prec = max(300, prec)!;
+             myDom = [max(inf(dom), zd); min(sup(dom), zu)];
+         prec = oP!;
+             zeros = dirtyfindzeros(funktion, myDom);
+             if (zeros == [||]) then {
+                myDom = dom;
+             };      
+             constantevaluateprocedure = proc(data, X, n, p) {
+                var res, oldPrec, oldPoints, zeros, z, zd, zu, resCache, oldVerb;
+                if (n == 0) then {
+                       if (p > maxZeroPrec) then {
+                  write("Refusing to evaluate a zero at more than ", maxZeroPrec, " bits\n");
+              p = maxZeroPrec;
+               };
+               resCache = checkZeroConstantCache(data, X, n, p);
+               if (resCache.okay) then {
+                  res = resCache.res;
+               } else {
+                  write("Evaluating constant for data = ", data, " on X = ", X, " and p = ", p, " ----->\n");
+                      oldPrec = prec;
+                  oldPoints = points;
+              oldVerb = verbosity;
+                      prec = p + 10!;
+                  points = 5!;
+                      zeros = dirtyfindzeros(data.func,data.dom);
+                  if (zeros == [||]) then {
+                     res = [NaN];
+                  } else {
+                             z = zeros[0];
+                         zd = min(z * (1 - 2^(-prec+2)), z * (1 + 2^(-prec+2)));
+                         zu = max(z * (1 - 2^(-prec+2)), z * (1 + 2^(-prec+2)));
+                 res = [ round(zd, p, RD); round(zu, p, RU) ];
+                 if (!(0 in (data.func)(res))) then {
+                    res = [NaN];
+                 };
+                  };
+                      prec = oldPrec!;
+                  points = oldPoints!;
+              insertZeroConstantCache(data, X, n, p, res);
+                  write("------> DONE\n");
+              verbosity = oldVerb!;
+                       };
+                } else {
+                   res = [0];
+                };
+                return res;
+             };
+             ff = function(bind(constantevaluateprocedure, data, { .func = funktion, .dom = myDom }));
+             res = ff(min(sup(dom),max(inf(dom),round(mid(dom),12,RN))));
+             prec = max(300, oldPrec * 3)!;
+             c = round(res, prec, RN);
+             delta = [res - c];
+             prec = max(300, oldPrec * 3)!;
+             ff = annotatefunction(ff, c, dom, delta);
+             res = ff(min(sup(dom),max(inf(dom),round(mid(dom),12,RN))));
+             };
+      };
+      prec = oldPrec!;
+      points = oldPoints!;
+
+      write("-----------> constructed the dynamic constant ", res, " =~= ", round(res, prec, RN), "\n");
+
+      return res;
+};
+
+procedure tryAddAnnotationFunctionByX(funktion, dom) {
+      var deriv, myDom, poly, coeffErrors, Delta, DeltaCoeff, i;
+      var antiDerivPolyByX, res, oldPrec, oldAutosimplify, funcByX, annotatedFunc;
+
+      res = { .okay = false };
+      if (0 in dom) then {
+          write("Trying to add an annotation for function ", funktion, " divided by x over ", dom, "\n");
+          oldPrec = prec;
+          prec = max(300, ceil(2.4 * prec))!;
+          deriv = diff(funktion);
+          myDom = [max(inf(dom),-1b-45);min(sup(dom),1b-45)];
+          tf = taylorform(deriv, 12, 0, myDom, absolute);
+          poly = tf[0];
+          coeffErrors = tf[1];
+          Delta = tf[2];
+          DeltaCoeff = [0];
+          for i from length(coeffErrors)-1 to 0 by -1 do {
+              DeltaCoeff = DeltaCoeff * myDom + (coeffErrors[i]);
+          };
+          DeltaGlobal = Delta + DeltaCoeff;
+          antiDerivPolyByX = 0;
+          for i from 0 to degree(poly) do {
+             antiDerivPolyByX = antiDerivPolyByX + (coeff(poly, i) / (i + 1)) * x^i;
+          };
+          antiDerivPolyByX = horner(antiDerivPolyByX);
+          prec = oldPrec!;
+          funcByX = simplify(funktion/x);   
+          oldAutosimplify = autosimplify;
+          autosimplify = off!;
+          annotatedFunc = annotatefunction(funcByX, antiDerivPolyByX, myDom, DeltaGlobal);
+          autosimplify = oldAutosimplify!;
+          "Annotation done: p = ", antiDerivPolyByX, ", Delta = ", DeltaGlobal, ", domain = ", myDom;
+          res = { .okay = true, .func = annotatedFunc };
+      };
+
+      return res;
+};
+
+procedure remezorfail(funktion,dom,monomials,eps) {
+      var res;
+      var yDom, yZero, okay, zeros;
+      var c, shiftedFunc, shiftedDom;
+      var shiftedRes, shiftedMonomials, m, i, h;
+      var oldAutosimplify, shiftedFuncByX, resAnnot;
+      var oP;
+
+      yDom = evaluate(funktion, dom);
+      if (0 in yDom) then {
+        if (0 in dom) then {
+           yZero = evaluate(funktion, [0]);
+           if ((inf(yZero) <= 0) && (sup(yZero) >= 0)) then {
+             okay = true;
+           } else {
+             okay = false;
+           };
+        } else {
+           okay = false;
+        };
+      } else {
+        okay = true;
+      };
+      if (!okay) then {
+         zeros = mydirtyfindzeros(funktion, dom);
+         lzeros = length(zeros);
+         if ((lzeros == 0) || (lzeros >= 2)) then {
+            okay = true;
+         };
+      };
+
+      if (okay) then {
+           res = legacyremezorfail(funktion,dom,monomials,eps);
+          } else {
+           c = makeZeroConstant(funktion, dom);
+           if ([c] == [c]) then {
+                shiftedFunc = horner(funktion(x + c));
+            oP = prec;
+            prec = max(300, prec)!;
+            shiftedDom = dom - c;
+            prec = oP!;
+            shiftedFunc = annotatefunction(shiftedFunc, 0, [0], [0]);
+            resAnnot = tryAddAnnotationFunctionByX(shiftedFunc, shiftedDom);
+            if (resAnnot.okay) then {
+                 shiftedFuncByX = resAnnot.func;
+                 oldAutosimplify = autosimplify;
+                 autosimplify = off!;
+                 shiftedFunc = annotatefunction(shiftedFunc, x * shiftedFuncByX, shiftedDom, [0]);
+             shiftedFunc = simplify(shiftedFunc);
+                 autosimplify = oldAutosimplify!;
+                    };
+            secondDerivShiftedFunc = simplify(diff(diff(shiftedFunc)));
+            h = simplify(diff(simplify(shiftedFunc / secondDerivShiftedFunc)));
+            if (h == 0) then {
+                write("Information: second derivative of shifted function has a zero at zero as well as the function itself.\n");
+            secondDerivShiftedFunc = annotatefunction(secondDerivShiftedFunc, 0, [0], [0]);
+                };
+            if (match (monomials) with 
+                              a @ [||] : (true)
+                              default  : (false)) then {
+              shiftedMonomials = [||];
+              for m in monomials do {
+                  if (m != 0) then {
+                 shiftedMonomials = m .: shiftedMonomials;
+              };
+              };
+              shiftedMonomials = revert(shiftedMonomials);
+              if (shiftedMonomials == [||]) then {
+                 shiftedMonomials = [| 1 |];
+              };
+                } else {
+              if (monomials >= 1) then {
+                shiftedMonomials = [| 1, ..., monomials |];
+              } else {
+                shiftedMonomials = [| 1 |];
+              };              
+            };
+                    shiftedRes = legacyremezorfail(shiftedFunc,shiftedDom,shiftedMonomials,eps);
+            if (shiftedRes != false) then {
+               p = shiftedRes(x - c);
+               q = 0;
+               for i from 0 to degree(p) do {
+                   q = q + x^i * round(coeff(p,i),2 * prec + 10,RN);
+               };
+               q = horner(q);
+               if (match (monomials) with 
+                                   a @ [||] : (true)
+                                   default  : (false)) then {
+                      res = subpoly(q, monomials);
+                       } else {
+                  res = q;
+               };
+            } else {
+               res = legacyremezorfail(funktion,dom,monomials,eps);
+            };
+           } else {
+                    res = legacyremezorfail(funktion,dom,monomials,eps);
+           };
+      };
+
+      return res;
+};
+
+
+procedure simpleRemezWrapper(funktion, dom, targetErr, iterations) {
+      var y, guess, noConstantTerm, err, deg, k;
+      var res;
+
+      if (0 in dom) then {
+          y = evaluate(funktion, 0);
+      } else {
+              y = evaluate(funktion, [mid(dom)]);
+      };
+      if ((inf(y) <= 0) && (sup(y) >= 0)) then {
+         { guess = guessdegreewrapper(1,dom,abs(targetErr),x/funktion); };
+         guess = guess + 1;
+         noConstantTerm = true;
+      } else {
+         { guess = guessdegreewrapper(1,dom,abs(targetErr),1/funktion); };
+         noConstantTerm = false;
+      };
+    
+      err = 1b1000;
+      deg = guess - 1;
+      if (deg < 0) then deg = 0;
+      k = 0;
+      while ((abs(err) > abs(targetErr)) && (k <= iterations)) do {
+         deg := deg + 1;
+         if (noConstantTerm) then 
+            monomials = [|1,...,deg|]
+         else 
+            monomials = [|0,...,deg|];
+         poly = remezorfail(funktion,dom,monomials,targetErr);
+         if (poly != false) then {
+            err = mydirtyinfnorm(poly/funktion-1,dom);
+         };
+         k := k + 1;
+      };
+
+      if (abs(err) <= abs(targetErr)) then 
+        res = poly
+      else 
+        res = false;
+
+      return res;
+};
+
+
+/* remezwrapper 
+
+   Computes an approximation polynomial of smallest degree possible
+   better than or equal to a target error respecting implementation 
+   constraints (Horner evaluation).
+
+   Returns the found polynomial
+   Returns false if no polynomial has been found in iterations iterations
+
+*/
+
+procedure remezwrapper(funktion, dom, targetErr, iterations) {
+      var guess, y, i, deg;
+      var poly, err, noConstantTerm;
+      var monomials;
+      var revMonomials, subPolyDeg, subPolyDone, correctMonomials, i, g, alpha;
+      var poly2;
+      var k;
+      var res;
+      var uncorrectpoly;
+      var minmax;
+      var samesign;
+      var uncorrecterr;
+      var errR;
+      var infnormPoly;
+      var special, nocancel;
+      var temp;
+      var lastcoeff;
+      var r, q, nrm, gamma, targetDelta, nrmQ, nrmP;
+      var firstremezpoly, firstremezpolyerr, firstremezpolyfound;
+      var ci;
+
+      firstremezpolyfound = false;
+
+      if (0 in dom) then {
+          y = evaluate(funktion, 0);
+      } else {
+              y = evaluate(funktion, [mid(dom)]);   
+      };
+      if ((inf(y) <= 0) && (sup(y) >= 0)) then {
+         { guess = guessdegreewrapper(1,dom,abs(targetErr),x/funktion); };
+         guess = guess + 1;
+         noConstantTerm = true;
+      } else {
+         { guess = guessdegreewrapper(1,dom,abs(targetErr),1/funktion); };
+         noConstantTerm = false;
+      };
+
+      err = 1b1000;
+      deg = guess - 1;
+      if (deg < 0) then deg = 0;
+      k = 0;
+      while ((abs(err) > abs(targetErr)) && (k <= iterations)) do {
+         deg := deg + 1;
+         if (noConstantTerm) then 
+            monomials = [|1,...,deg|]
+         else 
+            monomials = [|0,...,deg|];
+         poly = remezorfail(funktion,dom,monomials,targetErr);
+         if (poly != false) then {
+            err = mydirtyinfnorm(poly/funktion-1,dom);
+         };
+         k := k + 1;
+      };
+
+      if (abs(err) <= abs(targetErr)) then {
+          write("\t\tcurrent remez polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n");
+          firstremezpoly = poly;
+          firstremezpolyerr = err;
+          firstremezpolyfound = true;
+          k = 0;
+          uncorrecterr = err;
+          err = 1b1000;
+          while ((abs(err) > abs(targetErr)) && (k <= iterations)) do {
+            revMonomials = revert(monomials);
+            subPolyDeg = [|head(revMonomials)|];
+            subPolyDone = coeff(poly,head(revMonomials));
+            correctMonomials = [|head(revMonomials)|];
+            revMonomials = tail(revMonomials);
+            infnormPoly = mydirtyinfnorm(poly,dom);         
+            if ((mydirtyfindzeros(poly,dom) == [||]) && (degree(poly) > 0)) then {
+              gamma = 1/(degree(poly) * 2 * mydirtyinfnorm(1/poly, dom));
+            } else {
+              gamma = 0;
+            };
+            while (revMonomials != [||]) do {
+                  i = head(revMonomials);
+                  ci = coeff(poly,i);
+                  if (ci == 0) then {
+                     ci = 1b-1075;
+                  };
+                  g = (x * subPolyDone) / ci;
+                  alpha = mydirtyinfnorm(g,dom);
+                  
+                      samesign = false; nocancel = false; absoluteAuthorized = false;
+                  if (alpha > 0.5) then {
+                minmax = minimaMaxima(x * subPolyDone,dom); 
+                samesign = ((inf(minmax) * sup(minmax) > 0) && (inf(minmax) * coeff(poly,i) > 0));
+                temp = minimaMaxima(g,dom);
+                nocancel = (inf(temp) > -0.5);
+                if (nocancel) then {
+                   write("\t\tCase of impossible cancellation by asymmetric subpolynomial addition detected on coefficient ", i, "\n");
+                };
+
+                if (!nocancel) then {
+                   if (i > 0) then {
+                        q = subpoly(poly, [| i ... |]);
+                        nrm = mydirtyinfnorm(q/poly, dom);
+                        if (nrm > 0) then {
+                       if (abs(targetErr)/nrm > 1b-52) then {
+                           if (i == degree(poly) - 1) then {
+                               absoluteAuthorized = true;
+                                                   write("\t\tCase of possible cancellation authorized because in double precision range on coefficient ", i, " and an absolute error bound suffices\n");                   
+                           } else {
+                               targetDelta = abs(targetErr) * gamma;
+                               r = subpoly(poly, [| (i + 1) ... |]);
+                               nrmP = mydirtyinfnorm(r, dom);
+                               nrmQ = mydirtyinfnorm(r * x, dom);
+                               if (nrmP > 0) then {
+                                   if (abs(nrmQ * abs(targetErr)/nrmP) < abs(targetDelta)) then {
+                                      absoluteAuthorized = true;
+                                                          write("\t\tCase of possible cancellation authorized because in double precision range on coefficient ", i, " and an absolute error bound suffices\n");
+                                   };
+                               };
+                                               };
+                       };
+                        };
+                   };
+                };
+
+                  };    
+
+                  special = (alpha > 0.5) && (alpha < 1) && 
+                            (abs(targetErr) / abs(coeff(poly,i) * alpha / infnormPoly) * 1b52 >= abs(1 - alpha)) && 
+                            (abs(targetErr) / abs(coeff(poly,i) * alpha / infnormPoly) >= 1b-52);
+
+                  lastcoeff = (i == 0) && (coeff(poly,i) != 0);
+
+                  if (special) then write("\t\tCase of possible cancellation authorized because in double precision range on coefficient ", i, "\n");
+
+                  if ((samesign) || ((alpha <= 0.5) || special) || nocancel || lastcoeff || absoluteAuthorized) then {
+                 correctMonomials = i.:correctMonomials;
+                 subPolyDone = coeff(poly,i) + x * subPolyDone;
+                     subPolyDeg = i.:subPolyDeg;
+                  } else {
+                     subPolyDone = x * subPolyDone;
+                  };
+                  revMonomials = tail(revMonomials);
+            };
+
+            uncorrectpoly = poly; 
+            poly = subpoly(poly,correctMonomials);
+            err = mydirtyinfnorm(poly/funktion - 1, dom);
+            write("\t\tcurrent implem. polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n");
+            if (abs(err) > abs(targetErr)) then {
+               poly = remezorfail(funktion,dom,correctMonomials,targetErr);
+               if (poly != false) then {
+                      errR = mydirtyinfnorm(poly/funktion - 1, dom);
+                  if (abs(errR) > abs(err)) then {
+                     write("Warning: Remez on incomplete base worse than force-and-round\n");
+                  };
+                  err = errR;
+                  write("\t\tcurrent implem. polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n"); 
+                  /* write("Found implementable polynomial with error at 2^(",round(log2(err),12,RN),")\n"); */
+               };
+            };              
+
+            // round(log2(err),12,RN), round(log2(uncorrecterr),12,RN);
+
+            if (abs(err) > abs(targetErr)) then {
+               k := k + 1;
+               monomials = monomials:.(simplifysafe(head(revert(monomials)) + 1));
+               poly2 = remezorfail(funktion,dom,monomials,targetErr);
+               if (poly2 != false) then {
+                      poly = poly2;
+                      err = mydirtyinfnorm(poly/funktion - 1, dom);
+                      uncorrecterr = err;
+                  write("\t\tcurrent remez polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n"); 
+               } else {
+                      write("Warning: remez failed on function = ",funktion,", dom = ",dom,", monomials = ",monomials,"\n");
+                  k := iterations + 1;
+               };
+               if (abs(err) > abs(targetErr)) then {
+                  write("Warning: must use polynomial that is difficult to implement.\n");  
+                  poly = uncorrectpoly;
+                  err = mydirtyinfnorm(poly/funktion - 1, dom);
+               } else {
+                         uncorrecterr = err;
+                 err = 1b1000;
+               };
+            };              
+          };
+          };
+      
+      if (abs(err) <= abs(targetErr)) then {
+         res = poly;
+      } else {
+         if ((abs(targetErr) > 1b-51) && firstremezpolyfound) then {
+               write("Warning: using a polynomial that might be pretty hard to implement.\n");  
+           res = firstremezpoly;
+         } else {
+           res = false;
+             };
+      };
+
+      return res;     
+};
+
+
+
+
+
+

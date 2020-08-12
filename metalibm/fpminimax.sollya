@@ -1,0 +1,162 @@
+/*
+ * Copyright 2008 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * Sollya wrapper scripts for the fpminimax algorithm in Sollya
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+fpminimaxdebug = true;
+
+/* containselement 
+
+   Helper function testing whether an element is contained in a list
+
+*/
+procedure containselement(l, e) {
+      var i;
+      var contained;
+      var ll;
+
+      contained = false;
+      i = 0;
+      ll = length(l);
+      while ((i < ll) && (!contained)) do {
+        if (l[i] == e) then {
+           contained = true;
+        };
+        i := i + 1;
+      };
+
+      return contained;
+};
+
+
+/* fpminimaxwrapper
+
+   Returns an FP-approximation polynomial
+   Returns false on failure
+
+   Uses symetries if possible
+
+   monomials may be the empty list, 
+    in which case the procedure computes the list from pstar
+
+   pointlist may be the empty list, 
+    in which case the procedure computes the list from pstar
+
+   formatlist is given in D, DD, TD notation
+
+*/
+procedure fpminimaxwrapper(func,dom,monomials,pstar,pointlist,formatlist) {
+      var d, symetrical, i, firstmonomial;
+      var mypointlist;
+      var olddisplay;
+      var l,c,k;
+      var P0, poly;
+      var mymonomials;
+      var fullformatlist;
+      var olddisplay2;
+
+      olddisplay = display = ?;
+      display = decimal!;
+
+      if (monomials == [||]) then {
+        mymonomials = [||];
+        for i from 0 to degree(pstar) do 
+          if (coeff(pstar,i) != 0) then mymonomials = mymonomials:.i;
+      } else {
+        mymonomials = monomials;
+      };
+
+      symetrical = true;
+      i := length(mymonomials) - 1;
+      firstmonomial = head(mymonomials);
+      while ((i >= 0) && symetrical) do {
+        if (floor((mymonomials[i] + firstmonomial) / 2) * 2 != (mymonomials[i] + firstmonomial)) then 
+           symetrical = false;
+        i := i - 1;
+      };
+      if (symetrical) then {
+         if (-inf(dom) > sup(dom)) then 
+        d = [1b-1075, -inf(dom)]
+         else 
+        d = [1b-1075, sup(dom)];
+      } else {
+         d = dom;
+      };
+
+      if (pointlist == [||]) then {
+        if (horner(pstar/func-1)!=0) then {
+           mypointlist = mydirtyfindzeros(pstar/func-1,d);
+        } else {
+          mypointlist = [||];
+        };
+      } else {
+        mypointlist = pointlist;
+      };
+      
+      if (degree(pstar) >= 1) then {
+          if ((length(mypointlist) < length(mymonomials)) || (length(mypointlist) >= 2 * length(mymonomials) + 3)) then {
+             write("Warning: not enough (or too much) points for fpminimax - delegating the issue\n");
+             if (fpminimaxdebug) then {
+                olddisplay2 = display; display = dyadic!; 
+                write("Information: calling fpminimax with prec = ",prec," and points = ",points,":\n\tfpminimax(",func,",",mymonomials,",",formatlist,",",d,",",default,",",default,",",default,",",pstar,");\n");
+                display = olddisplay2!;
+                 };
+             P0 = fpminimax(func,mymonomials,formatlist,d,default,default,default,pstar);
+         if (!(P0 == P0)) then {
+            P0 = pstar;
+         };
+          } else {
+             if (fpminimaxdebug) then {
+                olddisplay2 = display; display = dyadic!; 
+                write("Information: calling fpminimax with prec = ",prec," and points = ",points,":\n\tfpminimax(",func,",",mymonomials,",",formatlist,",",mypointlist,",",default,",",default,",",default,",",pstar,");\n");
+                display = olddisplay2!;
+                 };
+             P0 = fpminimax(func,mymonomials,formatlist,mypointlist,default,default,default,pstar);
+         if (!(P0 == P0)) then {
+            P0 = pstar;
+         };
+          };
+          } else {
+             P0 = pstar;
+      };
+
+      fullformatlist = [||];
+      i = 0;
+      for k from 0 to degree(P0) do {
+          if (!containselement(mymonomials,k)) then {
+            fullformatlist = fullformatlist:.D;
+          } else {
+            fullformatlist = fullformatlist:.(formatlist[i]);
+        i := i + 1;
+          };
+      };
+      
+      poly = roundcoefficients(P0,fullformatlist);
+
+          display = olddisplay!;
+
+      return poly;
+};

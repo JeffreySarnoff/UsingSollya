@@ -1,0 +1,60 @@
+/*
+ * Copyright 2019 by
+ *
+ *   Department of Computer Science & Engineering
+ *   UAA College of Engineering
+ *   University of Alaska Anchorage (UAA).
+ *
+ * Sollya metalibm procedures to bind with an alternative
+ * implementation of the Sollya implementpoly command.
+ *
+ * Contributor: Christoph Quirin Lauter (UAA)
+ *              christoph.lauter@christoph-lauter.org
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon by the equipe PEQUAN
+ * at Universite Pierre et Marie Curie Paris 6 and by Department of
+ * Computer Science & Engineering, UAA College of Engineering at
+ * University of Alaska Anchorage (UAA).
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+/* Implements polynomial poly over the interval dom with a relative
+   error bound by epsTarget.  The free variable x is stored as a D,
+   DD, TD as indicated by variableformat. The generated code goes into
+   the file codefile. A Gappa proof is generated, too. It goes into
+   the file prooffile. The code is generated in a way that a function
+   functionname is defined following the pattern:
+
+   void functionname(double *res_h, double *res_m, double *res_l, double xh, double xm);
+
+   On failure the function returns a structure containing at least the field .okay
+   that is set to false.
+
+   On success the function returns a structure containing at least two fields:
+
+   .okay set to true
+   .poly set to the polynomial actually implemented (it may or may not differ from poly).
+
+*/
+procedure alternative_implementpoly(poly, dom, epsTarget, variableformat, functionname, codefile, prooffile) {
+      var res;
+
+      res = { .okay = false };
+
+      return res;
+};
+

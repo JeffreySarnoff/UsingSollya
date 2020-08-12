@@ -1,0 +1,14 @@
+
+execute("inverse.sollya");
+
+f = sin(x) + 42;
+dom = [-1,1];
+target = 1b-70;
+maxDegree = 10;
+minWidth = (sup(dom) - inf(dom)) * 1/4096;
+tableIndexWidth = 8;
+minimalReductionRatio = 1000;
+metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
+performExpressionDecomposition = 0;
+adaptWorkingPrecision = false;
+maxDegreeReconstruction = 5;

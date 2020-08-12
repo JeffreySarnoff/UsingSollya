@@ -1,0 +1,84 @@
+/*
+ * Copyright 2008 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * Sollya scripts for testing symmetry propeerties on functions
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+
+procedure testEvenSymetry(func, dom, target, defdom) {
+      var res;
+      var a, possibleBs, fa, possibleRawBs, pbs, possibleRawBs2;
+      var t;
+      var errSym;   
+      var shiftedFunc, shiftedDom;
+      var olddiam;
+      var accessDomMinus;
+      var yDeriv;
+
+      yDeriv = evaluate(diff(func), dom);
+      if (inf(yDeriv) * sup(yDeriv) < 0) then {
+
+      a := (3 * inf(dom) + sup(dom))/4;
+      fa := func(a);
+      olddiam = (diam = ?);
+      diam = olddiam * 1b-10!;
+      possibleRawBs2 = myfindzeros(func - fa, dom);
+      possibleRawBs = [||];
+      for pbs in possibleRawBs2 do 
+          possibleRawBs = possibleRawBs @ (myfindzeros(func - fa, pbs));
+      diam = olddiam!;
+      possibleBs = [||];
+      for pbs in possibleRawBs do 
+         possibleBs = possibleBs@(mydirtyfindzeros(func - fa, pbs));
+      possibleBs = sort(possibleBs);      
+      
+      if (possibleBs != [||]) then {
+         b = head(possibleBs);
+         for pbs in possibleBs do 
+             if (abs(pbs - a) > abs(b - a)) then b = pbs;
+         t := D((a + b) / 2);
+         shiftedFunc = horner(func(x + t));
+         shiftedDom = [inf(dom) - t; sup(dom) - t];
+         accessDomMinus = -shiftedDom + t;
+         if (accessDomMinus in defdom) then {
+            errSym = mydirtyinfnorm(shiftedFunc(-x)/shiftedFunc(x) - 1, shiftedDom);
+            if (errSym <= abs(target)) then {
+                   res = t;
+            } else {
+               res = false;
+            };
+         } else {
+           res = false;
+         };
+      } else {
+         res = false;
+      };
+      } else {
+         res = false;
+      };
+
+      return res;
+};
+

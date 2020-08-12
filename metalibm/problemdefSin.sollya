@@ -1,0 +1,11 @@
+f = sin(21/10 * x^2 + 3.5 * x + 1664/17);
+dom = [-20,20];
+target = 2^(-32);
+maxDegree = 12;
+minWidth = (sup(dom) - inf(dom)) * 1/4096;
+tableIndexWidth = 0;
+minimalReductionRatio = 1000;
+metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
+performExpressionDecomposition = 0;
+adaptWorkingPrecision = false;
+maxDegreeReconstruction = 5;

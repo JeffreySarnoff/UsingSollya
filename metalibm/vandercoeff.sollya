@@ -1,0 +1,303 @@
+/*
+ * Copyright 2008 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * Sollya wrapper scripts for vandercoeff techniques by Torres and Brisebarre
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+__vandercoeff_metalibmdir = bashevaluate("pwd") @ "/";
+if (isbound(__metalibmdir)) then {
+   __vandercoeff_metalibmdir = "" @ __metalibmdir @ "";
+} else {
+  __vandercoeff_metalibmdir = bashevaluate("pwd") @ "/";
+};
+
+externalproc(vandercoeff, __vandercoeff_metalibmdir @ "vandercoeff.so", (integer, list of integer, list of constant, list of constant, constant) -> list of range);
+
+
+procedure binomial(n,k) {
+      var i, num, denom;
+      var res;
+
+      num = 1; denom = 1;
+      for i from 1 to k do {
+          num = num * (n - i + 1);
+          denom = denom * i;
+      };
+
+      res := num / denom;
+
+      return res;
+};
+
+
+/* vandercoeffswrapper
+
+   Returns a list of bounds for the coefficients of a polynomial
+   with monomials in the base as in poly
+
+   Returns false in case of failure
+
+*/
+procedure vandercoeffswrapper(poly, func, dom, target) {
+      var res;
+      var monomials;
+      var interpolPoints, evaluatedPoints;
+      var p, i;
+      var maxerr, alpha;
+      var okay;
+      var symetrical, firstmonomial, d;
+      var olddisplay;
+
+      monomials = [||];
+      for i from 0 to degree(poly) do {
+          if (coeff(poly, i) != 0) then monomials = monomials:.i;
+      };
+      symetrical = true;
+      i := length(monomials) - 1;
+      firstmonomial = head(monomials);
+      while ((i >= 0) && symetrical) do {
+        if (floor((monomials[i] + firstmonomial) / 2) * 2 != (monomials[i] + firstmonomial)) then 
+           symetrical = false;
+        i := i - 1;
+      };
+      if (symetrical) then {
+         if (-inf(dom) > sup(dom)) then 
+        d = [1b-1075, -inf(dom)]
+         else 
+        d = [1b-1075, sup(dom)];
+      } else {
+         d = dom;
+      };
+      
+      interpolPoints = (inf(d)).:(mydirtyfindzeros(diff(poly/func - 1), d)):.(sup(d));
+
+      evaluatedPoints = [||];
+      for p in interpolPoints do evaluatedPoints = evaluatedPoints:.(mid(evaluate(func,p)));
+
+      if (target == false) then {
+          alpha = 1b-10;
+          maxerr = (mydirtyinfnorm(poly/func - 1, dom)) * (1 + alpha);
+          } else {
+              maxerr = target;
+      };
+
+      res = false;
+
+      if (binomial(length(interpolPoints),length(monomials)) > 500) then {
+         write(length(interpolPoints)," points, ", length(monomials), " monomials: too many submatrices to consider, will not use vandercoeff.\n");
+         res = false;
+      } else {
+         if (target > 1b-51) then {
+              write("Target precision makes use of vandercoeff worthless.\n");
+              res = false;
+         } else {
+            //write("Calling vandercoeff(",1,",",monomials,",",interpolPoints,",",evaluatedPoints,",",maxerr,")\n");
+            res = vandercoeff(1, monomials, interpolPoints, evaluatedPoints, maxerr);     
+             };
+      };
+      
+      if (!(res == res)) then res = false;
+
+      if (res != false) then {
+         okay = true;
+         for i in res do {
+             if (sup(i) - inf(i) > 1) then okay = false;
+         };
+         if (!okay) then {
+            write("Warning: strange result produced by vandercoeff. Will not use it.\n");
+            res = false;
+         };
+      };
+
+      olddisplay = display;
+      display = dyadic!;
+
+      display = olddisplay!;
+
+      return res;
+};
+
+/* determinelowerprecisions
+
+   Returns a list of lists 
+
+   The first list contains precisions for the coefficients of a polynomial
+   with monomials in the base as in poly
+   The second list contains monomial degrees with possible coefficients that are a power of 2
+
+   Returns false in case of failure
+
+*/
+procedure determinelowerprecisions(poly, func, dom, target) {
+      var res;
+      var bounds; 
+      var precs;
+      var b, bl, bu;
+      var p, pp;
+      var okay;
+      var powersoftwo;
+      var i;
+
+      res = false;
+      bounds = false;
+      bounds = vandercoeffswrapper(poly, func, dom, target);
+
+
+      if (bounds != false) then {
+         precs = [||];
+         powersoftwo = [||];
+         i = length(bounds) - 1;
+         for b in bounds do {
+             bl = inf(b);
+         bu = sup(b);
+         p := ceil(-log2(abs((bu - bl)/mid(b)))) + 1;
+         if (p > 161) then p = 161;
+         okay = false;
+         while ((p >= 20) && (!okay)) do {
+                if (round(bl,p,RU) >= round(bu,p,RD)) then {
+               pp = p;
+               okay = true;            
+               if (ceil(log2(abs(bl))) == floor(log2(abs(bu)))) then {
+                  powersoftwo = i.:powersoftwo;
+               };
+            };
+            p := p - 1;
+         };
+         if (!okay) then pp = 20;        
+         precs = pp.:precs;
+         i := i - 1;
+         };      
+         res = [|precs,powersoftwo|];
+      };
+
+      return res;
+};
+
+
+procedure listcontains(l,i) {
+      var res;
+      var li, myl;
+
+      res = false;
+      myl = l;
+      while ((myl != [||]) && (!res)) do {
+        li = head(myl);
+        if (li == i) then res = true;
+        myl = tail(myl);
+      };
+
+      return res;
+};
+
+
+procedure bubblesortpermut(l) {
+      var permut;
+      var i,k, len;
+      var myl;
+      var temp;
+
+      myl = l;
+      len = length(myl) - 1;
+      permut = [|0,..., len|];
+      for i from 0 to len-1 do {
+          for k from i+1 to len do {
+              if (myl[k] < myl[i]) then {
+             temp = myl[i];
+             myl[i] = myl[k];
+             myl[k] = temp;
+             temp = permut[i];
+             permut[i] = permut[k];
+             permut[k] = temp;  
+          };
+          };
+      };
+
+      return permut;
+};
+
+
+
+
+/* determinelowerbounds
+
+   Returns a list of 3 lists.
+
+   The first list contains indications D, DD, TD needed for the coefficients 
+   of a polynomial with a base like poly
+
+   The second list contains a permutation order for the coefficient search
+
+   The third list gives the overestimates in precision by the D, DD, TD rounding
+   
+   Returns false in case of failure
+
+*/
+procedure determinelowerbounds(poly, func, dom, target) {
+      var res, lowerprecs, precs, powersoftwo;
+      var doubleprecs, pr, dp;
+      var i;
+      var retranslatedprecs;
+      var rtp;
+      var dfp, diffprecs;
+
+      res = false;
+
+      lowerprecs = determinelowerprecisions(poly, func, dom, target);
+
+      if (lowerprecs != false) then {
+         precs = lowerprecs[0];
+         powersoftwo = lowerprecs[1];
+         doubleprecs = [||];
+         retranslatedprecs = [||];
+         diffprecs = [||];
+         i = 0;
+         for pr in precs do {
+             if (listcontains(powersoftwo,i)) then {
+            if (pr > 107) then dp = TD else 
+               if (pr > 65) then dp = DD else dp = D;
+         } else {
+               if (pr > 108) then dp = TD else 
+               if (pr > 54) then dp = DD else dp = D;
+         };
+         
+         if (dp == D) then rtp = 53 else 
+            if (dp == DD) then rtp = 107 else rtp = 161;
+
+         dfp := rtp - pr;
+
+         doubleprecs = doubleprecs:.dp;   
+         retranslatedprecs = retranslatedprecs:.rtp;
+         diffprecs = diffprecs:.dfp;
+         
+         i := i + 1;
+         };      
+         permut = bubblesortpermut(diffprecs);   
+
+         res = [|doubleprecs, bubblesortpermut(diffprecs),diffprecs,precs|];
+      };
+    
+
+      return res;
+};
