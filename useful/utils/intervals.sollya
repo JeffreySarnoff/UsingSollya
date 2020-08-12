@@ -1,0 +1,52 @@
+/* gathered and extended from other files present in the repository */
+/*
+
+   >> interval utilities <<
+   
+   interval(lo, hi)    -> [lo; hi]
+   midpoint(interval)  -> (hi + lo) / 2
+   radius(interval)    -> (hi - lo) / 2
+   width(interval)     -> hi - lo
+   contains0(interval) -> true|false
+   contains(interval, value) -> true|false
+   
+*/
+
+
+procedure interval(lo, hi) {
+  var res;
+  var mn, mx;
+  if (lo > hi) then {mn = hi; mx = lo;} else {mn = lo; mx = hi;};
+  res = [mn; mx];
+  return res;
+};
+
+procedure width(interval) {
+  var res;
+  res = sup(interval) - inf(interval);
+  return res;
+};
+
+procedure radius(interval) {
+  var res;
+  res = (sup(interval) - inf(interval)) * 0.5;
+  return res;
+};
+
+procedure midpoint(interval) {
+  var res;
+  res = inf(interval) + radius(interval);
+  return res;
+};
+
+procedure contains0(interval) {
+  var res;
+  res = ((inf(interval) <= 0) && (sup(interval) >= 0));
+  return res;
+};
+
+procedure contains(interval, value) {
+  var res;
+  res = ((inf(interval) <= value) && (sup(interval) >= value));
+  return res;
+};
