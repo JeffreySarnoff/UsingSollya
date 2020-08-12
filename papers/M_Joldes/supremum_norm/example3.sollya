@@ -1,0 +1,41 @@
+//* Example 3 */
+
+/* This example is meant to be used with the version of Sollya
+   available by SVN, the 27th of October 2008. You can get it
+   by applying the following command:
+
+ svn checkout svn://scm.gforge.inria.fr/svn/sollya -r {2008-10-27}
+
+   You need to compile Sollya itself (see sollya/trunk/README)
+   and to compile manually the files sturm.c and autodiff.c
+   (instructions are give in the files themselves).
+
+   The directory containing the present file must also contain
+   the files infinityNorm.sollya, findZerosFamilyOfPoly.sollya
+   and getTaylorPoly.sollya
+
+   These files are just prototypes distributed as is. It may fail
+   to compute a certified infinity norm in some cases.
+*/
+
+
+sollyapath=".";
+roundingwarnings=off!;
+read "infinityNorm.sollya";
+
+mode=relative;
+theta=1b-135;
+procVerbosity=2;
+
+
+d = [-205674681606191b-53;205674681606835b-53];
+f = asin(x + 0x3fe5e58f08291918);
+p = 15651770362713997207607972106972745b-114 + (x *(3476698806776688943652103662933b-101 + (x *(17894972500311187082269807705171b-104 + (x *(126976607296441025269345153102591b-106 + (x *(249107378895562413495151944042799b-106 + (x *(139053951649796304768149995225589b-104 + (x *(165428664168251249501887921888847b-103 + (x *(206167601873884163281098618631159b-102 + (x *(66386611260133347295510390653099b-99 + (x * (2433556521489987b-43 + (x* (409716955440671b-39 + (x * (2242518346998655b-40 + (x *(3108616106416871b-39 + (x * (4356285307071455b-38 + (x *(6161286268548935b-37 + (x * (8783550111623067b-36 + (x *(788026560267325b-31 + (x * (1138037795125313b-30 + (x *(3304615966282565b-30 + (x * (602367826671283b-26 + (x *(1765006192104851b-26 + (x * (1337636086941861b-24 + (x *986777691264547b-22)))))))))))))))))))))))))))))))))))))))))));
+theta=1b-140;
+
+
+
+timing=on!;
+r=infinityNorm(p,f,d,mode,theta);
+timing=off!;
+print("Certified infinity norm:",r);

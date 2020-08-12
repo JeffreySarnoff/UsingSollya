@@ -1,0 +1,227 @@
+externalproc(getNrRoots, sollyapath@"/sturm", (function, range) -> integer);
+
+
+/*****************************************************************
+
+intersectLists:
+     Input: two lists L1 and L2 containing intervals
+     Output: a list of intervals equal to the intersection of
+             the union of the elements of L1 and the union of
+             the elements of L2.
+
+*****************************************************************/
+
+intersectLists = proc(L1, L2) {
+  var result;
+
+  if (length(L1)==0) || (length(L2)==0)
+  then result = [||]
+  else {
+    if inf(L1[0]) <= inf(L2[0])
+    then {
+      if inf(L2[0]) <= sup(L1[0])
+      then { if sup(L2[0]) <= sup(L1[0])
+             then result = L2[0] .: intersectLists(L1, tail(L2))
+             else result = [inf(L2[0]) ; sup(L1[0])] .: intersectLists(tail(L1), L2);
+           }
+      else result = intersectLists(tail(L1), L2);
+    }
+    else {
+      if inf(L1[0]) <= sup(L2[0])
+      then { if sup(L1[0]) <= sup(L2[0])
+             then result = L1[0] .: intersectLists(tail(L1), L2)
+             else result = [inf(L1[0]) ; sup(L2[0])] .: intersectLists(L1, tail(L2));
+           }
+      else result = intersectLists(L1, tail(L2));
+    };
+  };
+
+  return result;
+};
+
+
+
+
+
+/*****************************************************************
+
+ findZerosFamilyOfPoly:
+     Input:  a polynomial q and a range errorRange and a range d
+     Output: a list of intervals surely enclosing the zeros of any
+             polynomial p such that |p-q| \in errorRange
+
+******************************************************************/
+
+findZerosFamilyOfPoly = proc(q, errorRange, d) {
+
+var nRight, nLeft, oldprec, oldpoints, oldtiming, listRight, listRightIntervals, listRightSigns, listRightBound, listLeft, listLeftIntervals, listLeftSigns, listLeftBound, a, b, ya, yb, test, precisionForRounding, i, result;
+
+oldtiming=timing;
+timing=off!;
+
+/* We localize the zeros of q-sup(errorRange) */
+nRight = getNrRoots(q-sup(errorRange), d);
+if(procVerbosity>=2) then print("We are looking for",nRight,"roots");
+
+oldprec = prec;
+prec = prec + 10!;
+oldpoints = points;
+points = nRight*2!;
+
+listRight = [||];
+while (length(listRight) != nRight) do {
+  points = points*2!;
+  if(procVerbosity>=2) then print("Numerically finding the roots... points =",points);
+  listRight = dirtyfindzeros(q-sup(errorRange), d);
+};
+
+
+listRightIntervals = [||];
+listRightSigns = [||];
+for i from nRight-1 to 0 by -1 do {
+  if(procVerbosity>=3) then print("Finding an enclosure for the root number ",i);
+  test = false;
+  precisionForRounding = oldprec;
+  while (!test) do {
+    a = round(listRight[i], precisionForRounding, RD);
+    b = round(listRight[i], precisionForRounding, RU);
+    ya = evaluate(q-sup(errorRange), [a;a]);
+    yb = evaluate(q-sup(errorRange), [b;b]);
+
+    if (sup(ya)<0 && inf(yb)>0)
+    then { listRightIntervals = [a;b].:listRightIntervals ;
+           listRightSigns = -1.:listRightSigns;
+           test = true;
+         }
+    else {
+    if (inf(ya)>0 && sup(yb)<0)
+    then { listRightIntervals = [a;b].:listRightIntervals ;
+           listRightSigns = 1.:listRightSigns;
+           test = true;
+         }
+    else { precisionForRounding = precisionForRounding-10;
+           if(procVerbosity>=3) then print("Looping... (precision = ",precisionForRounding,")");
+         };
+    };
+  };
+};
+
+prec = oldprec!;
+points = oldpoints!;
+
+
+
+
+/* We localize the zeros of q-inf(errorRange) */
+nLeft = getNrRoots(q-inf(errorRange), d);
+if(procVerbosity>=2) then print("We are looking for",nLeft,"roots");
+
+oldprec = prec;
+prec = prec + 10!;
+oldpoints = points;
+points = nLeft*2!;
+
+listLeft = [||];
+while (length(listLeft) != nLeft) do {
+  points = points*2!;
+  if(procVerbosity>=2) then print("Numerically finding the roots... points =",points);
+  listLeft = dirtyfindzeros(q-inf(errorRange), d);
+};
+
+
+listLeftIntervals = [||];
+listLeftSigns = [||];
+for i from nLeft-1 to 0 by -1 do {
+  if(procVerbosity>=3) then print("Finding an enclosure for the root number ",i);
+  test = false;
+  precisionForRounding = oldprec;
+  while (!test) do {
+    a = round(listLeft[i], precisionForRounding, RD);
+    b = round(listLeft[i], precisionForRounding, RU);
+    ya = evaluate(q-inf(errorRange), [a;a]);
+    yb = evaluate(q-inf(errorRange), [b;b]);
+
+    if (sup(ya)<0 && inf(yb)>0)
+    then { listLeftIntervals = [a;b].:listLeftIntervals ;
+           listLeftSigns = -1.:listLeftSigns;
+           test = true;
+         }
+    else {
+    if (inf(ya)>0 && sup(yb)<0)
+    then { listLeftIntervals = [a;b].:listLeftIntervals ;
+           listLeftSigns = 1.:listLeftSigns;
+           test = true;
+         }
+    else { precisionForRounding = precisionForRounding-10;
+           if(procVerbosity>=3) then print("Looping... (precision = ",precisionForRounding,")");
+         };
+    };
+  };
+};
+
+prec = oldprec!;
+points = oldpoints!;
+
+
+
+/* We deduce a list of possible roots for q+errorBound */
+
+if listRightSigns==[||]
+then { a = mid(d);
+       ya = evaluate(q-sup(errorRange), [a;a]);
+       if (inf(ya)>0) then listRightSigns=[|1|];
+       if (sup(ya)<0) then { listRightSigns=[|-1|]; listRightIntervals=[|d|];};
+       if (inf(ya)<=0) && (sup(ya)>=0)
+         then { print("Unable to evaluate the sign of ",q-sup(errorRange),"at point ",a); listRightSigns=error; };
+};
+
+if listRightSigns[0] == 1 
+then listRightBound = [||]
+else listRightBound = [| [inf(d); sup(listRightIntervals[0])] |];
+for i from 0 to length(listRightIntervals)-1 do {
+  if listRightSigns[i]==1
+  then {
+    if i == length(listRightIntervals)-1
+    then listRightBound = listRightBound:.[ inf(listRightIntervals[i]); sup(d)]
+    else listRightBound = listRightBound:.[ inf(listRightIntervals[i]); sup(listRightIntervals[i+1]) ];
+  };
+};
+
+
+if listLeftSigns==[||]
+then { a = mid(d);
+       ya = evaluate(q-inf(errorRange), [a;a]);
+       if (inf(ya)>0) then { listLeftSigns=[|1|]; listLeftIntervals=[|d|];};
+       if (sup(ya)<0) then listLeftSigns=[|-1|]; 
+       if (inf(ya)<=0) && (sup(ya)>=0)
+         then { print("Unable to evaluate the sign of ",q-inf(errorRange),"at point ",a); listLeftSigns=error; };
+};
+
+
+if listLeftSigns[0] == -1 
+then listLeftBound = [||]
+else listLeftBound = [| [inf(d); sup(listLeftIntervals[0])] |];
+for i from 0 to length(listLeftIntervals)-1 do {
+  if listLeftSigns[i] == -1
+  then {
+    if i == length(listLeftIntervals)-1
+    then listLeftBound = listLeftBound:.[ inf(listLeftIntervals[i]); sup(d)]
+    else listLeftBound = listLeftBound:.[ inf(listLeftIntervals[i]); sup(listLeftIntervals[i+1]) ];
+  };
+};
+
+/* We take now the intersection between listLeftBound and listRightBound */
+
+result = intersectLists(listLeftBound, listRightBound);
+timing=oldtiming!;
+return result;
+};
+
+
+
+/*
+procVerbosity = 3;
+d=[-1b-2; 1b-1];
+errorRange = [-5e-30; 5e-30];
+q = 1217557761866482481b-160 + x * (1602925418421145866385980186544493412434987593471b-254 + x * (-144948056238098910579201b-166 + x * (-1388389088155368481780539b-165 + x * (372930446538976826977091605b-169 + x * (7333084534724264674540922032302739059645825242835b-240 + x * (-94154913290208326181858262191b-170 + x * (-152168648655806210645752736485b-169 + x * (2992713756691814828898030219764943b-179 + x * (7864786055259407372240893441876605835537257488915b-232 + x * (-6237493281774519295840632997189523667b-185 + x * (5264288383950269840958432779126676591b-184 + x * (6453344754657534210994036765929996563355b-191 + x * (-6089947420748690786646030842592001600390475761005b-219 + x * (-2139151602838708708137808745068947971942145b-197 + x * (8850601420712161663364843707773604622727713b-196 + x * (-2419778405705671295420161430155309749637707589b-204 + x * (-3913767832602863851535634495388834967093390830155b-213 + x * (784340317346483980869004045703825518731284039053b-209 + x * (-6859726825402852929223039253369380154403233703215b-212 + x * (11081394390954533787967018784553174028016039913693b-214 + x^2 * (-24561358996401390906662829513814827282875378510003b-223 + x * (-17086162780105315413330664009610314631565480702611b-226 + x * (-22781550373473753884440885346147086175420640936815b-231 + x^2 * (35889703972980190734873025529930178836354978952767b-240 + x * (10633986362364500958480896453312645581142215986005b-242 + x * (1519140908909214422640128064758949368734602283715b-244 + x^2 * (-14304370489407223620997619662649785320314783802521b-256 + x * (-29531603591034268120769279303535040661295037527785b-261 + x * (-14765801795517134060384639651767520330647518763893b-265 + x^2 * (26952194364722897108438272733351053152554472752631b-275 + x * (3080250784539759669535802598097263217434796886015b-276 + x * (43808011157898804188953636950716632425739333489991b-285 + x^2 * (-15952846168452480615038593256590978522033100104463b-293 + x * (-6544757402442043329246602361678350162885374401831b-296))))))))))))))))))))))))))))))))));
+*/

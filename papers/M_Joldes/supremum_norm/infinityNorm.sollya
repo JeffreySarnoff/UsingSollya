@@ -1,0 +1,61 @@
+read "getTaylorPoly.sollya";
+read "findZerosFamilyOfPoly.sollya";
+
+
+infinityNorm = proc(p,f,d,mode,theta) {
+  var oldtiming, L, errorFunc, x0, err, t, pointsList, pointsListFinal, u, left, right;
+
+  oldtiming=timing;
+  timing=off!;
+
+  if mode==absolute
+  then { L=getTaylorApprox(diff(p)-diff(f), d, theta, 5);
+         errorFunc=p-f; }
+  else { L=getTaylorApprox(diff(p)*f-p*diff(f), d, theta, 5);
+         errorFunc=p/f-1; };
+
+  x0=L[1];
+  err=L[2];
+  t=L[0];
+  pointsList=findZerosFamilyOfPoly(t, [-err; err], [inf(d)-x0, sup(d)-x0]);
+  
+  pointsListFinal=[| [inf(d)] |];
+  for u in pointsList do pointsListFinal=pointsListFinal:.evaluate(x+x0,u);
+  pointsListFinal = pointsListFinal:.[sup(d)];
+
+  left=0; right=0;
+  for u in pointsListFinal do {
+    y = abs(evaluate(errorFunc,u));
+    if sup(y) > right then right=sup(y);
+    if inf(y) > left then left=inf(y);
+  };
+
+  if(procVerbosity>=2)
+  then {
+    print("f =", f);
+    print("Degree of p :", degree(p));
+    print("d = [",inf(d),", ",sup(d),"]");
+    print("mode :", mode);
+    print("current precision:", prec);
+    print("Expansion point:",x0);
+    print("Maximal error for Taylor polynomial ~= 2^(-", ~floor(-log2(theta)),")");
+    print("Actual error ~= 2^(-", ~floor(-log2(err)),")");
+    print("Degree of Taylor polynomial:", degree(t));
+    print("Dirtyinfnorm", dirtyinfnorm(errorFunc,d));
+    print("Quality of the computed norm:", ~(-log2((right-left)/left)));
+  };
+
+  if(procVerbosity>=3)
+  then {
+    print("*********************************************");
+    print("Possible extrema:");
+    for u in pointsListFinal do u;
+    print("");
+    print("Evaluation of epsilon in these points:");
+    for u in pointsListFinal do abs(evaluate(errorFunc,u));
+    print("*********************************************");
+  };
+
+  timing=oldtiming!;
+  return [left, right];
+};

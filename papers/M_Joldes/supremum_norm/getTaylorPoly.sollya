@@ -1,0 +1,202 @@
+externalproc(AD, sollyapath @ "/autodiff", (function, range, integer) -> list of range);
+
+procedure max(a,b)
+{
+  var r;
+  if (a>b) then r=a
+  else r=b;
+  return r;
+};
+
+procedure zeroInside(I)
+{
+  var r;
+  if ((sup(I)>0) && (inf(I)<0)) then r=true
+  else r=false;
+  return r;
+};
+
+procedure getFactorials(n)
+{
+  var L,factorial;
+  factorial=[1,1];
+  L=[|factorial|];
+  for i from 1 to n do {
+    factorial=evaluate(i*x,factorial);
+    L=L:.factorial;
+  };
+  return L;
+
+};
+
+procedure getPolynomialFromList(L) {
+  var t,i;
+  t=L[length(L)-1];
+  for i from length(L)-2 to 0 by -1 do
+    t:=x*t+L[i];
+  return horner(t);
+};
+
+
+procedure getTaylor(f,deg,x0, xRange, delta,maxIter)
+{
+  var L,i,firstPrec,I,L,Coeff,RestCoeffs,m,t,M,z,factorial,n,xInt,intCoeff,tau,needMorePrec,iter,returnList;
+
+  firstPrec=prec;
+  /*print("The precision was:",prec);*/
+  midpointmode=on!;  
+  needMorePrec=true;
+  iter=1;
+  returnList=[||];
+  while(needMorePrec && (iter<maxIter)) do {
+    I=[x0,x0];
+    L=AD(f,I,deg);
+  
+    Coeff=[||];
+    RestCoeffs=[||];
+  
+  
+  
+    /*print("The coeffs obtained on intervals are:",L);*/
+
+    factorial=[1,1];
+    n=1;
+    for tau in L do { 
+      intCoeff=tau/factorial;    
+      /*print("After dividing by i! we got ",intCoeff);   */
+      if zeroInside(intCoeff) then 
+        m=0
+      else
+        m=mid(intCoeff);
+    
+      Coeff=Coeff:.m;
+      t=[inf(intCoeff)-m, sup(intCoeff)-m];
+      RestCoeffs=RestCoeffs:.t;
+    
+      factorial=evaluate(n*x,factorial);    
+      n=n+1;
+    
+    };
+
+    /*print("The midpoint coeffs obtained on intervals are:",Coeff);*/
+    /*print("The small t's obtained on intervals are:",RestCoeffs);*/
+
+    M=0;
+    xInt=evaluate(x-x0,xRange);
+    for i from 0 to deg do{
+
+      z=evaluate(x^i,xInt);  
+      M=M+max(abs(sup(z)),abs(inf(z)))* max(abs(sup(RestCoeffs[i])),abs(inf(RestCoeffs[i])));
+    };
+    /*print("The rest obtained is:",M);*/
+    if (M>delta) then {
+      /*print("Ups... not good.. increase the precision");*/
+      prec=2*prec;
+      iter=iter+1;
+    }
+    else {
+      needMorePrec=false;
+      t=getPolynomialFromList(Coeff);
+      returnList=[|M,t|];
+    };
+  };
+  
+  prec=firstPrec!;
+  return returnList ;
+
+};
+
+procedure getTaylorApprox(f, xRange, delta, maxIter){
+  var oldtiming,L,i,firstPrec,I,d,iter,potentialDeg,x0,xInt,z,taylorRest, taylorRestMax,factList,zr,dz,mindz,zeroList,keepTaylorRest,poly,smallRest,solutionFound,finalResult;
+  oldtiming = timing;
+  timing = off!;
+  firstPrec=prec;
+  /*print("The precision was:",prec);*/
+  /*we choose a sufficiently big precision*/
+  prec=ceil(max(-2*log2(delta),prec))!;
+  /*we choose a degree*/
+  d=sup(guessdegree(f,xRange,delta)); 
+  d=2*d; /*we guess the degree and double from start*/
+  iter=1;
+  solutionFound=false;
+  while (iter<maxIter) do {
+  /*print("dgree=",d);*/
+    L=AD(f,xRange,d);
+    /*print("Derivatives = ", L);*/
+    /*we need the factorials up to n! computed -> as few times as possible*/
+    /*we compute this list for once*/
+    factList=getFactorials(d);
+    /*print("factorials=",factList);   */
+
+    i=d;
+    /*we go as low as possible and compute the taylor rest each time*/
+    /*we need the development point,x0*/
+    
+    /*if 0 lies in xRange, take 0*/
+    if (inf(xRange)<=0) && (sup(xRange)>=0)
+    then x0=0
+    else x0=mid(xRange);
+    /*print("We have chosen the development point in :",x0, "for the range: ",xRange);*/
+    taylorRest=L[i];
+    /*we divide it by i!*/    
+    taylorRest=taylorRest/factList[i];    
+    
+    /*We compute (x-x0)^i*/
+    xInt=evaluate(x-x0,xRange);
+    z=evaluate(x^i,xInt);  
+
+    /*We compute the maximum absolute value of taylorRest*/
+    taylorRestMax= max(abs(sup(z)),abs(inf(z)))* max(abs(sup(taylorRest)),abs(inf(taylorRest)));
+    /*print("The max of taylor rest computed is: ",taylorRestMax);*/
+
+    while((taylorRestMax<=delta) && (i>0) ) do {
+      keepTaylorRest=taylorRestMax;      
+      /*print("We try to reduce the guessed degree...");      */
+      i=i-1;  
+      taylorRest=L[i];
+
+      /*we divide it by i!*/    
+      taylorRest=[inf(evaluate(x/sup(factList[i]),taylorRest)), sup(evaluate(x/inf(factList[i]),taylorRest))];    
+    
+      /*We compute (x-x0)^i*/
+      xInt=evaluate(x-x0,xRange);
+      z=evaluate(x^i,xInt);  
+
+      /*We compute the maximum absolute value of taylorRest*/
+      taylorRestMax= max(abs(sup(z)),abs(inf(z)))* max(abs(sup(taylorRest)),abs(inf(taylorRest)));
+      /*print("The max of taylor rest computed is: ",taylorRestMax);*/
+    };
+    if (i==d) then {
+      /*the guess degree is not a good degree*/
+      /*print("the guess degree is not a good degree, going two times further");*/
+      iter=iter+1;
+      /*if by any chance d was zero, make it 2 times +1*/
+      if (d==0) then d=2
+      else d=2*d;
+      if (2*floor(iter/2)==iter) then prec=2*prec!;
+      }
+    else {
+      /*we found a potential degree for the development*/
+      potentialDeg=i+1; 
+      /*print("The max of taylor rest computed is: ",keepTaylorRest, "and it is the", potentialDeg, "term in taylor development");*/
+      
+      
+      /*we go for the small rest*/
+      /*we request the small rest and the polynomial*/
+      /*print("We go for the small rest, and a polynomial of degree", i);*/
+      taylorList=getTaylor(f,i,x0, xRange, delta-keepTaylorRest,maxIter);
+      poly=taylorList[1];
+      smallRest=taylorList[0];
+      /*print("Whoa...the polynomial is: ",poly);
+      print("the Small one =", smallRest);
+      print( "The taylor rest is: ",keepTaylorRest);*/
+      iter=maxIter;
+      solutionFound=true;
+    };
+  };
+  prec=firstPrec!;
+  timing=oldtiming!;
+  if solutionFound then finalResult=[|poly,x0,sup([smallRest+keepTaylorRest,smallRest+keepTaylorRest])|]
+  else finalResult=[||];
+  return finalResult;
+};

@@ -1,0 +1,41 @@
+/* Example 2 */
+
+/* This example is meant to be used with the version of Sollya
+   available by SVN, the 27th of October 2008. You can get it
+   by applying the following command:
+
+ svn checkout svn://scm.gforge.inria.fr/svn/sollya -r {2008-10-27}
+
+   You need to compile Sollya itself (see sollya/trunk/README)
+   and to compile manually the files sturm.c and autodiff.c
+   (instructions are give in the files themselves).
+
+   The directory containing the present file must also contain
+   the files infinityNorm.sollya, findZerosFamilyOfPoly.sollya
+   and getTaylorPoly.sollya
+
+   These files are just prototypes distributed as is. It may fail
+   to compute a certified infinity norm in some cases.
+*/
+
+
+sollyapath=".";
+roundingwarnings=off!;
+read "infinityNorm.sollya";
+
+mode=relative;
+theta=1b-135;
+procVerbosity=2;
+
+
+d = [-1b-9;1b-9];
+f = log2(1 + x);
+p = x * (117045327009867803036301574157545b-106 + x * ((-58522663504933901606981166592605b-106) + x * (8663094464742397b-54 + x * ((-6497320848515433b-54) + x * (2598928339549937b-53 + x * ((-541446114948727b-51) + x * 3712726891772213b-54))))));
+theta=1b-205;
+
+
+
+timing=on!;
+r=infinityNorm(p,f,d,mode,theta);
+timing=off!;
+print("Certified infinity norm:",r);
