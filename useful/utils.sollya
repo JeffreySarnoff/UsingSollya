@@ -2,6 +2,11 @@
 /*
    minmax(a, b)
    
+   prepend(item, list)  -> [| item, list... |]
+   postpend(list, item) -> [| list..., item |]
+   append(list1, list2) -> [| list1..., list2... |]
+   sublist(list1, indiceslist) -> list1[ indicieslist ]
+   
    contains_zero(I)
 
    contains_element(list, element)
@@ -26,6 +31,38 @@ procedure minmax(a,b)
   else r=[|b,a|];
   return r;
 };
+
+procedure prepend(item1, list1) {
+  var res;
+  res = [| item1 |] @ list1;
+  return res;
+};
+
+procedure postpend(list1, item1) {
+  var res;
+  res = list1 :. item1;
+  return res;
+};
+
+procedure append(list1, list2) {
+  var res;
+  res = list1 @ list2;
+  return res;
+};
+
+procedure sublist(list1, indices) {
+  var res, nelems, n, i, idx, val;
+  nelems = length(list1);
+  n = length(indices);
+  if (max(indices) >= nelems) then error;
+  res = [| |];
+  for i from 0 to (n-1) do {
+    idx = indices[i];
+    val = list1[idx];
+    res = res :. val;
+  };
+  return res;
+}
 
 procedure contains_zero(I)
 {
