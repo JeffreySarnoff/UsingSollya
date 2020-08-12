@@ -40,7 +40,7 @@ procedure interval(lo, hi) {
   var res;
   var mn, mx;
   if (lo > hi) then {mn = hi; mx = lo;} else {mn = lo; mx = hi;};
-  res = [lo; hi];
+  res = [mn; mx];
   return res;
 };
 
