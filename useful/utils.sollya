@@ -25,6 +25,14 @@ procedure minmax(a,b)
   return r;
 };
 
+procedure contains_zero(I)
+{
+  var r;
+  if ((sup(I)>0) && (inf(I)<0)) then r=true
+  else r=false;
+  return r;
+};
+
 /*  
    contains_element(list, element)
    all_elements_are_equal(list)
@@ -182,4 +190,13 @@ intersectLists = proc(L1, L2) {
   };
 
   return result;
+};
+
+
+procedure get_poly_from_list(L) {
+  var t,i;
+  t=L[length(L)-1];
+  for i from length(L)-2 to 0 by -1 do
+    t:=x*t+L[i];
+  return horner(t);
 };
