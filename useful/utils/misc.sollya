@@ -1,0 +1,29 @@
+/* gathered and extended from other files present in the repository */
+/*
+   
+   >> minmax <<
+   
+   minmax(a, b)
+   minmax(list1)
+ 
+*/
+
+/* minmax */
+ 
+procedure minmax(a,b)
+{
+  var res;
+  if (b>a) then res=[|a,b|];
+  else res=[|b,a|];
+  return res;
+};
+
+procedure minmax(list1)
+{
+  var res;
+  var mn, mx;
+  mn = min(list1);
+  mx = max(list1);
+  res = [| mn, mx |];
+  return res;
+};
