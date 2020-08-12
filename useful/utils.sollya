@@ -1,5 +1,25 @@
 /* gathered and extended from other files present in the repository */
+/*
+   min(a, b)
+   max(a, b)
+   minmax(a, b)
+   
+   contains_zero(I)
 
+   contains_element(list, element)
+   all_elements_are_equal(list)
+   
+   split_list(list, idx)
+   
+   join_lists(list1, list2)
+   join_lists(list1, list2, list3)
+   join_lists(list1, list2, list3, list4)
+   
+   intersect_lists = proc(L1, L2)
+   
+   get_poly_from_list(L)
+
+*/
 
 procedure max(a,b)
 {
@@ -33,13 +53,6 @@ procedure contains_zero(I)
   return r;
 };
 
-/*  
-   contains_element(list, element)
-   all_elements_are_equal(list)
-   split_list(list, idx)
-   
-   join_lists(list1, list2)
-*/
 procedure contains_element(l, e) {
       var i;
       var contained;
@@ -155,16 +168,16 @@ procedure join_lists(l1, l2, l3, l4) {
 
 /*****************************************************************
 
-intersectLists:
+intersect_lists:
      Input: two lists L1 and L2 containing intervals
      Output: a list of intervals equal to the intersection of
              the union of the elements of L1 and the union of
              the elements of L2.
 
-result = intersectLists(listLeftBound, listRightBound);
+result = intersect_lists(listLeftBound, listRightBound);
 *****************************************************************/
 
-intersectLists = proc(L1, L2) {
+intersect_lists = proc(L1, L2) {
   var result;
 
   if (length(L1)==0) || (length(L2)==0)
