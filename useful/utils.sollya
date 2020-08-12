@@ -2,9 +2,18 @@
 /*
    minmax(a, b)
    
-   prepend(item, list)  -> [| item, list... |]
-   postpend(list, item) -> [| list..., item |]
+   reverse(list1) -> reversed(list1...)
+   revsort(list1) -> reverse(sort(list1))
+   
+   prepend(item, list1)  -> [| item, list1... |]
+   postpend(list1, item) -> [| list1..., item |]
    append(list1, list2) -> [| list1..., list2... |]
+   
+   dropfirst(list1) -> tail(list1)
+   droplast(list1) -> reverse(tail(reverse(list1)))
+   dropith(list1, ith) -> list1 without ith element
+   dropiths(list1, indiceslist) -> list1 with ith elements
+   
    sublist(list1, indiceslist) -> list1[ indicieslist ]
    
    contains_zero(I)
@@ -32,6 +41,22 @@ procedure minmax(a,b)
   return r;
 };
 
+procedure reverse(list1) {
+  var res;
+  var val, n, i;
+  n = length(list1) - 1;
+  res = [| |];
+  for i = 0 to n do { val = list1[n-i]; res = res :. val; };
+  return res;
+};
+
+procedure revsort(list1) {
+  var srt, res;
+  srt = sort(list1);
+  res = reverse(srt);
+  return res;
+};
+
 procedure prepend(item1, list1) {
   var res;
   res = [| item1 |] @ list1;
@@ -47,6 +72,43 @@ procedure postpend(list1, item1) {
 procedure append(list1, list2) {
   var res;
   res = list1 @ list2;
+  return res;
+};
+
+procedure dropfirst(list1) {
+  var res;
+  res = tail(list1);
+  return(res);
+};
+
+procedure droplast(list1) {
+  var res;
+  var n, i;
+  n = length(list1);
+  res = [| |];
+  for i = 0 to (n-1) do { res = res :. list1[i]; };
+  return res;
+};
+
+procedure dropith(list1, ith) {
+  var res;
+  var n, i, istart, iend;
+  n = length(list1) - 1;
+  istart = 0;
+  if (ith == 0) then istart = 1;
+  iend = n;
+  if (ith == n) then iend = n-1;
+  res = [| |];
+  for i = istart to iend do { if (i!=ith) then res = res :. list1[i]; };
+  return res;
+};
+
+procedure droptiths(list1, indiceslist) {
+  var res;
+  var idx, indiceshi2lo;
+  indiceshi2lo = revsort(indiceslist);
+  res = list1;
+  for idx in indiceshi2lo do {res = dropith(res, idx);};
   return res;
 };
 
