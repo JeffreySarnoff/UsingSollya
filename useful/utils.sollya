@@ -1,0 +1,24 @@
+/* gathered and extended from other files present in the repository */
+
+/* containselement 
+
+   Helper function testing whether an element is contained in a list
+
+*/
+procedure containselement(l, e) {
+      var i;
+      var contained;
+      var ll;
+
+      contained = false;
+      i = 0;
+      ll = length(l);
+      while ((i < ll) && (!contained)) do {
+        if (l[i] == e) then {
+           contained = true;
+        };
+        i := i + 1;
+      };
+
+      return contained;
+};
