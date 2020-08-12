@@ -42,7 +42,7 @@ procedure interval(lo, hi) {
   if (lo > hi) then {mn = hi; mx = lo;} else {mn = lo; mx = hi;};
   res = [lo; hi];
   return res;
-}
+};
 
 procedure minmax(a,b)
 {
