@@ -70,6 +70,20 @@ procedure split_list(l, i) {
       return res;
 };
 
+procedure split_list(l, i1, i2) {
+       var res;
+       var l1, l2;
+       
+       l1 = split_list(l, i1);
+       l2 = split_list(l1.1B, i2-i1);
+       
+       res.1A = l1.1A;
+       res.1B = l2.1A;
+       res.1C = 12.1B;
+       
+       return res;
+};
+
 procedure join_lists(l1, l2) {
        var res;
        var k, len1, len2;
