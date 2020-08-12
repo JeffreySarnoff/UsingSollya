@@ -119,3 +119,41 @@ procedure join_lists(l1, l2, l3, l4) {
        
        return res;
 };
+
+/*****************************************************************
+
+intersectLists:
+     Input: two lists L1 and L2 containing intervals
+     Output: a list of intervals equal to the intersection of
+             the union of the elements of L1 and the union of
+             the elements of L2.
+
+*****************************************************************/
+
+intersectLists = proc(L1, L2) {
+  var result;
+
+  if (length(L1)==0) || (length(L2)==0)
+  then result = [||]
+  else {
+    if inf(L1[0]) <= inf(L2[0])
+    then {
+      if inf(L2[0]) <= sup(L1[0])
+      then { if sup(L2[0]) <= sup(L1[0])
+             then result = L2[0] .: intersectLists(L1, tail(L2))
+             else result = [inf(L2[0]) ; sup(L1[0])] .: intersectLists(tail(L1), L2);
+           }
+      else result = intersectLists(tail(L1), L2);
+    }
+    else {
+      if inf(L1[0]) <= sup(L2[0])
+      then { if sup(L1[0]) <= sup(L2[0])
+             then result = L1[0] .: intersectLists(tail(L1), L2)
+             else result = [inf(L1[0]) ; sup(L2[0])] .: intersectLists(L1, tail(L2));
+           }
+      else result = intersectLists(L1, tail(L2));
+    };
+  };
+
+  return result;
+};
