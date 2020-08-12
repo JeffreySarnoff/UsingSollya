@@ -1,7 +1,5 @@
 /* gathered and extended from other files present in the repository */
 /*
-   min(a, b)
-   max(a, b)
    minmax(a, b)
    
    contains_zero(I)
@@ -20,22 +18,6 @@
    get_poly_from_list(L)
 
 */
-
-procedure max(a,b)
-{
-  var r;
-  if (a>b) then r=a
-  else r=b;
-  return r;
-};
-
-procedure min(a,b)
-{
-  var r;
-  if (b>a) then r=a
-  else r=b;
-  return r;
-};
 
 procedure minmax(a,b)
 {
