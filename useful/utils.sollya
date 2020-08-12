@@ -1,11 +1,13 @@
 /* gathered and extended from other files present in the repository */
 
-/* containselement 
-
-   Helper function testing whether an element is contained in a list
-
+/*  
+   contains_element(list, element)
+   all_elements_are_equal(list)
+   split_list(list, idx)
+   
+   join_lists(list1, list2)
 */
-procedure containselement(l, e) {
+procedure contains_element(l, e) {
       var i;
       var contained;
       var ll;
@@ -21,4 +23,85 @@ procedure containselement(l, e) {
       };
 
       return contained;
+};
+
+procedure all_elements_are_equal(l) {
+      var res, c, ll, h;
+
+      if (l == [||]) then {
+         res = true;
+      } else {
+         res = true;
+         c = head(l);
+         ll = tail(l);
+         while (res && (ll != [||])) do {
+               h = head(ll);
+           ll = tail(ll);
+           if (h != c) then {
+              res = false;
+           };
+         };
+      };
+
+      return res;
+};
+
+procedure split_list(l, i) {
+      var res;
+      var lA, lB, k, lenL;
+
+      lenL = length(l);
+      if ((i < 0) || (i >= lenL)) then {
+         res.lA = l;
+         res.lB = [||];
+      } else {
+        lA = [||];
+        for k from 0 to i - 1 do {
+            lA = lA :. (l[k]);
+        };
+        lB = [||];
+        for k from i to lenL - 1 do {
+            lB = lB :. (l[k]);
+        };
+        res.lA = lA;
+        res.lB = lB;
+      };
+
+      return res;
+};
+
+procedure join_lists(l1, l2) {
+       var res;
+       var k, len1, len2;
+       
+       len1 = length(l1);
+       len2 = length(l2);
+       
+       res = [||];
+       for k from 0 to (len1-1) do {
+          res = res :. (l1[k]);
+       };
+       for k from 0 to (len2-1) do {
+          res = res :. (l2[k]);
+       };
+       
+       return res;
+};
+
+procedure join_lists(l1, l2, l3) {
+       var tmp, res;
+       
+       tmp = join_lists(l1, l2);
+       res = join_lists(tmp, l3);
+       
+       return res;
+};
+
+procedure join_lists(l1, l2, l3, l4) {
+       var tmp, res;
+       
+       tmp = join_lists(l1, l2, l3);
+       res = join_lists(tmp, l4);
+       
+       return res;
 };
