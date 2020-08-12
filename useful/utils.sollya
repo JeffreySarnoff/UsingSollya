@@ -51,10 +51,16 @@ procedure append(list1, list2) {
 };
 
 procedure sublist(list1, indices) {
-  var res, nelems, n, i, idx, val;
-  nelems = length(list1);
+  var res;
+  if (max(indices) >= length(list1)) then res=error else res=get_sublist(list1, indices); 
+  return res;
+};
+
+procedure get_sublist(list1, indices) {
+  var res;
+  var nelems, n, i, idx, val;
   n = length(indices);
-  if (max(indices) >= nelems) then error;
+  nelems = length(list1);
   res = [| |];
   for i from 0 to (n-1) do {
     idx = indices[i];
@@ -62,7 +68,10 @@ procedure sublist(list1, indices) {
     res = res :. val;
   };
   return res;
-}
+};
+
+
+/* ------------------- ^ is ok --------------- */
 
 procedure contains_zero(I)
 {
