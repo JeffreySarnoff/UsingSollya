@@ -1,5 +1,30 @@
 /* gathered and extended from other files present in the repository */
 
+
+procedure max(a,b)
+{
+  var r;
+  if (a>b) then r=a
+  else r=b;
+  return r;
+};
+
+procedure min(a,b)
+{
+  var r;
+  if (b>a) then r=a
+  else r=b;
+  return r;
+};
+
+procedure minmax(a,b)
+{
+  var r;
+  if (b>a) then r=[|a,b|];
+  else r=[|b,a|];
+  return r;
+};
+
 /*  
    contains_element(list, element)
    all_elements_are_equal(list)
