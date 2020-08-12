@@ -128,6 +128,7 @@ intersectLists:
              the union of the elements of L1 and the union of
              the elements of L2.
 
+result = intersectLists(listLeftBound, listRightBound);
 *****************************************************************/
 
 intersectLists = proc(L1, L2) {
