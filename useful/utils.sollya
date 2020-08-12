@@ -1,6 +1,8 @@
 /* gathered and extended from other files present in the repository */
 /*
 
+   >> interval <<
+   
    interval(lo, hi)    -> [lo; hi]
    midpoint(interval)  -> (hi + lo) / 2
    radius(interval)    -> (hi - lo) / 2
@@ -8,9 +10,12 @@
    contains0(interval) -> true|false
    contains(interval, value) -> true|false
    
-
+   >> minmax <<
+   
    minmax(a, b)
    minmax(list1)
+   
+   >> list <<
    
    reverse(list1) -> reversed(list1...)
    revsort(list1) -> reverse(sort(list1))
@@ -26,21 +31,12 @@
    
    keepiths(list1, indiceslist) -> list1[ indicieslist ]
    
-   contains_zero(I)
-
-   contains_element(list, element)
-   all_elements_are_equal(list)
-   
    split_list(list, idx)
    
    join_lists(list1, list2)
    join_lists(list1, list2, list3)
    join_lists(list1, list2, list3, list4)
    
-   intersect_lists = proc(L1, L2)
-   
-   get_poly_from_list(L)
-
 */
 
 /* interval */
