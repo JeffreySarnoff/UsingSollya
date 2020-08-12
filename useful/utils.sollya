@@ -1,5 +1,7 @@
 /* gathered and extended from other files present in the repository */
 /*
+   interval(lo, hi) -> [lo; hi]
+   
    minmax(a, b)
    minmax(list1)
    
@@ -33,6 +35,14 @@
    get_poly_from_list(L)
 
 */
+
+procedure interval(lo, hi) {
+  var res;
+  var mn, mx;
+  if (lo > hi) then {mn = hi; mx = lo;} else {mn = lo; mx = hi;};
+  res = [lo; hi];
+  return res;
+}
 
 procedure minmax(a,b)
 {
