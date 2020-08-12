@@ -1,6 +1,7 @@
 /* gathered and extended from other files present in the repository */
 /*
    minmax(a, b)
+   minmax(list1)
    
    reverse(list1) -> reversed(list1...)
    revsort(list1) -> reverse(sort(list1))
@@ -35,10 +36,20 @@
 
 procedure minmax(a,b)
 {
-  var r;
-  if (b>a) then r=[|a,b|];
-  else r=[|b,a|];
-  return r;
+  var res;
+  if (b>a) then res=[|a,b|];
+  else res=[|b,a|];
+  return res;
+};
+
+procedure minmax(list1)
+{
+  var res;
+  var mn, mx;
+  mn = min(list1);
+  mx = max(list1);
+  res = [| mn, mx |];
+  return res;
 };
 
 procedure reverse(list1) {
