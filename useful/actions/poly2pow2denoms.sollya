@@ -1,0 +1,54 @@
+/*
+
+    machpoly(p::poly)
+    Given a polynomial computed in Sollya, convert it to the nearest one where the coeff denominators are powers of 2.
+
+*/
+
+# requires util lists.sollya
+
+procedure poly2coeffs(p) {
+   var dg, cs;
+   var i;
+   dg = degree(p);
+   cs = [| |];
+   for i from 0 to dg do {
+     cs = postpend(cs, coeff(p, i));
+   };
+   return cs;
+};
+
+procedure coeffs2poly(cs) {
+   var n, p, i;
+   n = length(cs) - 1;
+   p = cs[1];
+   for i from 1 to n do {
+     p = p + cs[i]*(x^i);
+   };
+   return p;
+};
+
+procedure ilog2(a) {
+   var b, res;
+   b = log2(abs(a));
+   res = floor(b);
+   return res;
+}
+
+procedure frexp(a) {
+  var expo, mant, res;
+  expo = exponent(a);
+  mant = mantissa(a);
+  res = [| mant, expo |];
+  return res;
+};
+
+procedure ldexp(frxp) {
+    var p2, expo, mand, res;
+    mant = frxp[0];
+    expo = frxp[1];
+    p2 = 2^expo;
+    res = mant * p2;
+    return res;
+};
+
