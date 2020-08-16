@@ -21,7 +21,7 @@ procedure poly2coeffs(p) {
 procedure coeffs2poly(cs) {
    var n, p, i;
    n = length(cs) - 1;
-   p = cs[1];
+   p = cs[0];
    for i from 1 to n do {
      p = p + cs[i]*(x^i);
    };
