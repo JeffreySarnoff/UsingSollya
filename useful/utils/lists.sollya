@@ -89,7 +89,7 @@ procedure dropith(list1, ith) {
   return res;
 };
 
-procedure droptiths(list1, indiceslist) {
+procedure dropiths(list1, indiceslist) {
   var res;
   var idx, indiceshi2lo;
   indiceshi2lo = revsort(indiceslist);
