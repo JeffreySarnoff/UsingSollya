@@ -28,27 +28,3 @@ procedure coeffs2poly(cs) {
    return p;
 };
 
-procedure ilog2(a) {
-   var b, res;
-   b = log2(abs(a));
-   res = floor(b);
-   return res;
-}
-
-procedure frexp(a) {
-  var expo, mant, res;
-  expo = exponent(a);
-  mant = mantissa(a);
-  res = [| mant, expo |];
-  return res;
-};
-
-procedure ldexp(frxp) {
-    var p2, expo, mand, res;
-    mant = frxp[0];
-    expo = frxp[1];
-    p2 = 2^expo;
-    res = mant * p2;
-    return res;
-};
-
