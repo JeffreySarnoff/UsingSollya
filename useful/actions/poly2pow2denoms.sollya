@@ -28,3 +28,14 @@ procedure coeffs2poly(cs) {
    return p;
 };
 
+procedure coeffs2dyadic(cs) {
+   var cse, csf, res;
+   cse = [||];
+   csf = [||];
+   for v in cs do {
+     cse = postpend(cse, exponent(v));
+     csf = postpend(csf, mantissa(v));
+   };
+   res = [| csf, cse |];
+   return res;
+};
