@@ -72,7 +72,7 @@ procedure droplast(list1) {
   var n, i;
   n = length(list1);
   res = [| |];
-  for i from 0 to (n-1) do { res = res :. list1[i]; };
+  for i from 0 to (n-2) do { res = res :. list1[i]; };
   return res;
 };
 
