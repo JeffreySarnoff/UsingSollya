@@ -3,7 +3,7 @@ procedure ilog2(a) {
    b = log2(abs(a));
    res = floor(b);
    return res;
-}
+};
 
 procedure frexp(a) {
   var expo, mant, res;
