@@ -30,3 +30,9 @@ pabs = fpminimax(exp(x),9,[|DD...|],dom,fixed,absolute);
 prel = fpminimax(exp(x),9,[|DD...|],dom,fixed,relative);
 dirtyinfnorm(exp(x)-pabs,dom);
 dirtyinfnorm(exp(x)-prel,dom);
+
+p = fpminimax(exp(x),10,[|DD,DD,DD,DD,DD,D...|],dom);
+/*
+1 + x * (1 + x * (81129638414606681695789005145719b-107 + x * (27043212804868893898596326425729b-107 + x * (108172851219475575594666465349273b-111 + x * (4803839602528529b-59 + x * (6405119470038371b-62 + x * (7320136536184855b-65 + x * (1830034584302661b-66 + x * (3252505190309023b-70 + x * 2975356567595021b-73)))))))))
+*/
+
