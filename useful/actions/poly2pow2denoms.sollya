@@ -3,9 +3,10 @@
     machpoly(p::poly)
     Given a polynomial computed in Sollya, convert it to the nearest one where the coeff denominators are powers of 2.
 
+    requires util lists.sollya
+
 */
 
-# requires util lists.sollya
 
 procedure poly2coeffs(p) {
    var dg, cs;
