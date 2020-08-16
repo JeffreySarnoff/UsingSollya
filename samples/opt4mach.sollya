@@ -1,0 +1,32 @@
+/*
+    Machine Optimized Minimax
+    uses lattice basis reduction
+*/
+
+t = double(pi/256);
+dom = [-t;t];
+p = fpminimax(sin(x), [|0,1,3,5|], [|double...|], dom, fixed, absolute);
+print(p);
+printexpansion(p);
+display=powers!;
+print(p);
+display=default;
+dirtyinfnorm(sin(x)-p(x), dom);
+
+dom=[0;1/2^9];
+pabs = fpminimax(exp(x),8,[|DD...|],dom,fixed,absolute);
+prel = fpminimax(exp(x),8,[|DD...|],dom,fixed,relative);
+dirtyinfnorm(exp(x)-pabs,dom);
+dirtyinfnorm(exp(x)-prel,dom);
+
+dom=[0;1/2^8];
+pabs = fpminimax(exp(x),8,[|DD...|],dom,fixed,absolute);
+prel = fpminimax(exp(x),8,[|DD...|],dom,fixed,relative);
+dirtyinfnorm(exp(x)-pabs,dom);
+dirtyinfnorm(exp(x)-prel,dom);
+
+dom=[0;1/2^8];
+pabs = fpminimax(exp(x),9,[|DD...|],dom,fixed,absolute);
+prel = fpminimax(exp(x),9,[|DD...|],dom,fixed,relative);
+dirtyinfnorm(exp(x)-pabs,dom);
+dirtyinfnorm(exp(x)-prel,dom);
