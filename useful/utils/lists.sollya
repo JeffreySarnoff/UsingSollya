@@ -32,7 +32,7 @@ procedure reverse(list1) {
   var val, n, i;
   n = length(list1) - 1;
   res = [| |];
-  for i = 0 to n do { val = list1[n-i]; res = res :. val; };
+  for i from 0 to n do { val = list1[n-i]; res = res :. val; };
   return res;
 };
 
@@ -72,7 +72,7 @@ procedure droplast(list1) {
   var n, i;
   n = length(list1);
   res = [| |];
-  for i = 0 to (n-1) do { res = res :. list1[i]; };
+  for i from 0 to (n-1) do { res = res :. list1[i]; };
   return res;
 };
 
@@ -85,7 +85,7 @@ procedure dropith(list1, ith) {
   iend = n;
   if (ith == n) then iend = n-1;
   res = [| |];
-  for i = istart to iend do { if (i!=ith) then res = res :. list1[i]; };
+  for i from istart to iend do { if (i!=ith) then res = res :. list1[i]; };
   return res;
 };
 
