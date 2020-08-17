@@ -6,6 +6,18 @@ procedure bin(){ display=binary!; };
 procedure dyad(){ display=dyadic!; };
 procedure pows(){ display=powers!; };
 
+/* type testing */
+/*
+   isnumber(x)
+   isinterval(x)
+   islist(x)
+*/
+
+/* caution, 0 width intervals are numbers */
+isnumber = proc(a) { inf(a) == sup(a); }; 
+isinterval = proc(a) { inf(a) != sup(a); }; 
+islist = proc(a) { length(a) == length(a); };
+
 /* essential constructs */
 /* 
     ivl(a,b) -> interval(a,b)
@@ -79,7 +91,21 @@ procedure insertidx(lst, idx, itm) {
   return res;
 };
 
-procedure insert(lst, ith, itm) {
+procedure insert(lst, idx, lst2) {
+ var res, n, lastidx, i;
+  res = [| |];
+  n = length(lst);
+  lastidx = n - 1;
+  if (idx==0) then res = append(lst2,lst) else {
+    if (idx==n) then res = append(lst,lst2) else {
+      for i from 0 to (idx-1) do { res = res :. lst[i]; };
+      res = append(res, lst2);
+      for i from idx to lastidx do { res = res :. lst[i]; };
+    };  
+  };
+  return res;
+};
+
   var res, lastidx;
   var lastidx, i, istart, iend;
   
