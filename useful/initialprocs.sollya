@@ -115,18 +115,3 @@ procedure insertlst(lst, idx, lst2) {
   return res;
 };
 
-  var res, lastidx;
-  var lastidx, i, istart, iend;
-  
-  lastidx = length(lst) - 1;
-  
-  if (ith==0) then res = prepend(itm,lst) else {
-    if (ith==lastidx) then res = postpend(lst,itm) else {
-    res = [| |];
-    for i from 0 to (ith-1) do { res = res :. lst[i]; };
-    res = res :. itm;
-    for i from ith to lastidx do { res = res :. lst[i]; };
-  };};
-  return res;
-};
-
