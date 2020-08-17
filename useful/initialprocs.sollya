@@ -43,7 +43,9 @@ lst = proc(args = ...) {
     prepend(item, list)
     postpend(list, item)
     append(list, list)
-    insert(list, idx, item)  -- idx==0 prepends, idx==length(list) postpends
+                                 idx==0 prepends, idx==length(list) postpends
+    inpend(list, idx, list2)  -- appends internally without nesting list2
+    insert(list, idx, item)   -- inserts internally, if item is a list, it nests
     
     dropfirst(list)
     droplast(list)
@@ -81,11 +83,11 @@ procedure dropidx(lst, idx) {
 
 procedure insert(lst, idx, itm) {
   var res;
-  if islist(itm) then res = insertlst(lst, idx, itm) else res = insertitm(lst, idx, itm);
+  if islist(itm) then res = insert_lst(lst, idx, itm) else res = insert_itm(lst, idx, itm);
   return res;
 }
 
-procedure insertitm(lst, idx, itm) {
+procedure insert_itm(lst, idx, itm) {
   var res, n, lastidx, i;
   res = [| |];
   n = length(lst);
@@ -100,7 +102,7 @@ procedure insertitm(lst, idx, itm) {
   return res;
 };
 
-procedure insertlst(lst, idx, lst2) {
+procedure insert_lst(lst, idx, lst2) {
  var res, n, lastidx, i;
   res = [| |];
   n = length(lst);
