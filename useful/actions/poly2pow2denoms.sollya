@@ -34,6 +34,6 @@ procedure coeffs2dyadic(cfs) {
      cfsexp = cfsexp :. exponent(v);
      cfsfrac = cfsfrac :. mantissa(v);
    };
-   res = [| cfsfrac, crsexp |];
+   res = [| cfsfrac, cfsexp |];
    return res;
 };
