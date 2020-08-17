@@ -14,9 +14,9 @@ procedure pows(){ display=powers!; };
 */
 
 /* caution, 0 width intervals are numbers */
-isnumber = proc(a) { inf(a) == sup(a); }; 
+isnumber   = proc(a) { inf(a) == sup(a); }; 
 isinterval = proc(a) { inf(a) != sup(a); }; 
-islist = proc(a) { length(a) == length(a); };
+islist     = proc(a) { var n; n=length(a); return n == n; };
 
 /* essential constructs */
 /* 
