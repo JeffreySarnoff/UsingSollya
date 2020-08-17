@@ -6,18 +6,20 @@ procedure bin(){ display=binary!; };
 procedure dyad(){ display=dyadic!; };
 procedure pows(){ display=powers!; };
 
+
 /* type testing */
 /*
    isnumber(x)
-   isinterval(x)  -- zero-width intervals are numbers
+   isinterval(x)  -- zero-width intervals are numbers (false here)
    islist(x)
-   ispoly(x)      -- degree 0 polynomials are numbers
+   ispoly(x)      -- degree 0 polynomials are numbers (false here)
 */
 
 isnumber   = proc(a) { inf(a) == sup(a); }; 
 isinterval = proc(a) { inf(a) != sup(a); }; 
 islist     = proc(a) { var n; n=length(a); return n == n; };
 ispoly     = proc(a) { var n; n=degree(a); return n == max(n,1); };
+
 
 /* essential constructs */
 /* 
@@ -77,7 +79,13 @@ procedure dropidx(lst, idx) {
   return res;
 };
 
-procedure insertidx(lst, idx, itm) {
+procedure insert(lst, idx, itm) {
+  var res;
+  if islist(itm) then res = insertlst(lst, idx, itm) else res = insertitm(lst, idx, itm);
+  return res;
+}
+
+procedure insertitm(lst, idx, itm) {
   var res, n, lastidx, i;
   res = [| |];
   n = length(lst);
@@ -92,7 +100,7 @@ procedure insertidx(lst, idx, itm) {
   return res;
 };
 
-procedure insert(lst, idx, lst2) {
+procedure insertlst(lst, idx, lst2) {
  var res, n, lastidx, i;
   res = [| |];
   n = length(lst);
