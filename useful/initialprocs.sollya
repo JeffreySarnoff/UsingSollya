@@ -82,12 +82,6 @@ procedure dropidx(lst, idx) {
 };
 
 procedure insert(lst, idx, itm) {
-  var res;
-  if islist(itm) then res = insert_lst(lst, idx, itm) else res = insert_itm(lst, idx, itm);
-  return res;
-}
-
-procedure insert_itm(lst, idx, itm) {
   var res, n, lastidx, i;
   res = [| |];
   n = length(lst);
@@ -102,7 +96,7 @@ procedure insert_itm(lst, idx, itm) {
   return res;
 };
 
-procedure insert_lst(lst, idx, lst2) {
+procedure inpend(lst, idx, lst2) {
  var res, n, lastidx, i;
   res = [| |];
   n = length(lst);
