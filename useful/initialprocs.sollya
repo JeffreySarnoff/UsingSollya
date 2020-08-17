@@ -1,0 +1,97 @@
+/* control the display mode with less typing */
+
+procedure dec(){ display=decimal!; };
+procedure hex(){ display=hexadecimal!; };
+procedure bin(){ display=binary!; };
+procedure dyad(){ display=dyadic!; };
+procedure pows(){ display=powers!; };
+
+/* essential constructs */
+/* 
+    ivl(a,b) -> interval(a,b)
+    lst(...) -> list(...)
+*/
+
+ivl = proc(a, b){ return [min(a,b); max(a,b)]; };
+
+lst = proc(args = ...) {
+  var res, i;
+  res = [| |];
+  for i in args do res = res :. i;
+  return res;
+};
+
+/* basic list handling */
+/*
+    reverse(list)
+    
+    prepend(item, list)
+    postpend(list, item)
+    append(list, list)
+    insert(list, idx, item)  -- idx==0 prepends, idx==length(list) postpends
+    
+    dropfirst(list)
+    droplast(list)
+    dropidx(list, idx)       -- idx==0 drops first, idx==length(list)-1 drops last
+*/
+
+procedure reverse(lst) {
+  var res, lastidx, i;
+  res = [| |];
+  lastidx = length(lst) - 1;
+  if lastidx >= 0 then {
+    for i from 0 to lastidx do { res = res :. lst[lastidx-i]; };
+  };
+  return res;
+};
+
+prepend  = proc(itm, lst) { return [|itm|] @ lst; };
+postpend = proc(lst, itm) { return lst :. itm; };
+append   = proc(lst1, lst2) { return lst1 @ lst2; };
+
+dropfirst = proc(lst) { return tail(lst); };
+droplast  = proc(lst) { return reverse(tail(reverse(lst))); };
+
+procedure dropidx(lst, idx) {
+  var res, lastidx, i;
+  res = [| |];
+  lastidx = length(lst) - 1;
+  if (idx==0) then res = dropfirst(lst) else {
+    if (idx==lastidx) then res = droplast(lst) else {
+      for i from 0 to lastidx do { if (i!=idx) then res = res :. lst[i]; };
+    };  
+  };
+  return res;
+};
+
+procedure insertidx(lst, idx, itm) {
+  var res, n, lastidx, i;
+  res = [| |];
+  n = length(lst);
+  lastidx = n - 1;
+  if (idx==0) then res = prepend(itm,lst) else {
+    if (idx==n) then res = postpend(lst,itm) else {
+      for i from 0 to (idx-1) do { res = res :. lst[i]; };
+      res = res :. itm;
+      for i from idx to lastidx do { res = res :. lst[i]; };
+    };  
+  };
+  return res;
+};
+
+procedure insert(lst, ith, itm) {
+  var res, lastidx;
+  var lastidx, i, istart, iend;
+  
+  lastidx = length(lst) - 1;
+  
+  if (ith==0) then res = prepend(itm,lst) else {
+    if (ith==lastidx) then res = postpend(lst,itm) else {
+    res = [| |];
+    for i from 0 to (ith-1) do { res = res :. lst[i]; };
+    res = res :. itm;
+    for i from ith to lastidx do { res = res :. lst[i]; };
+  };};
+  return res;
+};
+
