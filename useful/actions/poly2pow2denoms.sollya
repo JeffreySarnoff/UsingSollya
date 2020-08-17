@@ -2,41 +2,38 @@
 
     machpoly(p::poly)
     Given a polynomial computed in Sollya, convert it to the nearest one where the coeff denominators are powers of 2.
-
-    requires util lists.sollya
-
 */
 
 
-procedure poly2coeffs(p) {
-   var dg, cs;
+procedure poly2coeffs(ply) {
+   var dg, cfs;
    var i;
-   dg = degree(p);
-   cs = [| |];
+   dg = degree(ply);
+   cfs = [| |];
    for i from 0 to dg do {
-     cs = postpend(cs, coeff(p, i));
+     cfs =  cfs :. coeff(ply, i);
    };
-   return cs;
+   return cfs;
 };
 
-procedure coeffs2poly(cs) {
-   var n, p, i;
-   n = length(cs) - 1;
-   p = cs[0];
+procedure coeffs2poly(cfs) {
+   var n, ply, i;
+   n = length(cfs) - 1;
+   ply = cfs[0];
    for i from 1 to n do {
-     p = p + cs[i]*(x^i);
+     ply = ply + cfs[i]*(x^i);
    };
-   return p;
+   return ply;
 };
 
-procedure coeffs2dyadic(cs) {
-   var cse, csf, res;
-   cse = [||];
-   csf = [||];
-   for v in cs do {
-     cse = postpend(cse, exponent(v));
-     csf = postpend(csf, mantissa(v));
+procedure coeffs2dyadic(cfs) {
+   var cfsexp, cfsfrac, res;
+   cfsexp = [||];
+   cfsfrac = [||];
+   for v in cfs do {
+     cfsexp = cfsexp :. exponent(v);
+     cfsfrac = cfsfrac :. mantissa(v);
    };
-   res = [| csf, cse |];
+   res = [| cfsfrac, crsexp |];
    return res;
 };
