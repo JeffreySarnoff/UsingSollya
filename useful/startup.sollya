@@ -1,3 +1,7 @@
 execute("setup.sollya")
 execute("initialprocs.sollya")
 execute("fpminimax_wrapper.sollya")
+/*
+execute("numparts.sollya")
+execute("intervals.sollya")
+*/
