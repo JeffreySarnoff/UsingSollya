@@ -1,0 +1,3 @@
+execute("setup.sollya")
+execute("initialprocs.sollya")
+execute("fpminimax_wrapper.sollya")
