@@ -4,3 +4,5 @@ To run an external command use `bashexecute("<command>")
    with help of commands like execute, readfile and parse.
    
    
+prec sets bits of precision
+diam sets width of interval used with refinement
